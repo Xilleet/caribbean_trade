@@ -65,6 +65,18 @@ func _step_ship(ship: Ship) -> void:
 		if d <= eff_speed:
 			ship.pos = dest.coords
 			ship.current_town_id = dest.id
+			# Stage A3: port access check. War blocks ships flying the enemy
+			# flag; low player rep (< -50) blocks the player specifically.
+			# A blocked ship does NOT dock — it routes to the next stop.
+			if not _can_dock(ship, dest):
+				EventBus.message.emit("%s denied entry to %s — sailing on" % [ship.id, dest.name])
+				var route: TradeRoute = WorldState.get_route(ship.route_id)
+				if route != null and not route.stops.is_empty():
+					ship.destination_id = route.next_stop_after(dest.id)
+					ship.state = "sailing"
+				else:
+					ship.state = "idle"
+				return
 			ship.state = "docked"
 			ship.days_sailing = 0
 			EventBus.message.emit("%s docked at %s" % [ship.id, dest.name])
@@ -113,6 +125,27 @@ func _town_for(ship: Ship) -> Town:
 		return null
 	return WorldState.get_town(tid)
 
+# Stage A3: can this ship dock at this town? War blocks ships flying the
+# enemy flag (a Spanish-flagged ship cannot enter an English port during
+# the Anglo-Spanish war). Low player rep (< -50) blocks the player even
+# without formal war — the port authority simply denies entry to a known
+# smuggler/hostile trader. AI ships are subject to war blockades too.
+func _can_dock(ship: Ship, town: Town) -> bool:
+	if town == null:
+		return false
+	var port_state: String = town.state_id
+	if port_state == "":
+		return true   # no state owner, free port
+	# War blocks enemy-flagged ships.
+	if ship.flag_state != "" and ship.flag_state != port_state:
+		if WorldState.at_war(ship.flag_state, port_state):
+			return false
+	# Low player rep blocks the player (not AI).
+	if ship.owner_id == "player":
+		if WorldState.get_player_rep(port_state) < -50.0:
+			return false
+	return true
+
 # Stage A1: roll for a pirate attack on a sailing ship and apply the
 # outcome (cargo loss + repair upkeep). See header comment for money /
 # goods conservation notes.
@@ -152,3 +185,7 @@ func _roll_pirate_attack(ship: Ship, company: Company, local_town: Town) -> void
 	if extra_upkeep > 0.0:
 		msg += ", ремонт %.1f" % extra_upkeep
 	EventBus.message.emit(msg)
+	# Stage A3: pirate attack lowers player's pirate reputation — you're
+	# a target now, pirates remember. AI ships don't track rep.
+	if ship.owner_id == "player":
+		WorldState.adjust_player_rep("pirates", -2.0)

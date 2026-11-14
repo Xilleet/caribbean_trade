@@ -24,6 +24,7 @@ var route_id: String = ""
 # escort (risk halved), 2 = warship (risk quartered). Pirate roll in
 # ShipsTick uses effective_prob = base_prob / (1 + armed).
 var armed: int = 0
+var flag_state: String = ""   # Stage A3: which state's colours this ship flies (player="england", AI=home.state_id)
 # Stage 4: when true the ship auto-trades its route and departs on its own
 # (headless verification, future AI ships). When false the ship only docks and
 # waits — the player manually buys/sells and clicks "Отплыть" to depart.

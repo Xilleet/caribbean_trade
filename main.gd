@@ -156,6 +156,21 @@ func _finish_headless() -> void:
 				[es.fired_total, int(es.fired_by_type.get("drought", 0)),
 				 int(es.fired_by_type.get("storm", 0)), int(es.fired_by_type.get("famine", 0)),
 				 WorldState.active_events.size()])
+	# war/diplomacy stats.
+	var ws := _engine.war_system
+	if ws != null:
+		print("Wars: declared=%d, peaces=%d, incidents=%d, still active=%d" %
+			[ws.wars_declared, ws.peaces_signed, ws.incidents, WorldState.active_wars.size()])
+		if not WorldState.active_wars.is_empty():
+			var war_parts: PackedStringArray = PackedStringArray()
+			for w in WorldState.active_wars:
+				war_parts.append("%s↔%s" % [w.state_a, w.state_b])
+			print("Active wars: %s" % ", ".join(war_parts))
+	# final state relations snapshot.
+	var rel_parts: PackedStringArray = PackedStringArray()
+	for k in WorldState.state_relations.keys():
+		rel_parts.append("%s=%.0f" % [k, float(WorldState.state_relations[k])])
+	print("Relations: %s" % ", ".join(rel_parts))
 	_write_daily_csv(_snapshots)
 	_write_company_csv(_company_traj)
 	_write_summary(_money_start, money_end, _company_start)

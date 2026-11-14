@@ -606,6 +606,12 @@ state-triggered. Три архетипа:
   +Cap-Français, Fort-de-France (France); +Willemstad, Paramaribo
   (Netherlands — впервые на карте). Glyphs в `ascii_map.gd::_town_glyph`
   расширены с 5 до 15 уникальных букв (T P C G S H J D X R N K F W M).
+bilateral state relations + player reputation с государствами и
+  пиратами + war declarations (emergent из низких отношений) + peace treaties
+  + customs tax scaling по rep + port access blocks (war/low-rep). Новые:
+  `data/relations.json`, `simulation/systems/war_system.gd`,
+  `Ship.flag_state`, 8 тестов. 5 wars + 5 peaces + 61 incidents за 365 дней.
 
-Все 28 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700
-(включая 155k state treasuries + 229k от 10 новых городов), 15 городов на карте.
+Все 36 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700
+(включая 155k state treasuries + 229k от 10 новых городов), 15 городов на карте,
+4 государства с динамической дипломатией.

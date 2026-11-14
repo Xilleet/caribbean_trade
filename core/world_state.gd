@@ -19,6 +19,12 @@ var pirates_db: Dictionary = {}      # Stage A1: pirate_attack params + haven to
 var pirate_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 # Stage A1: separate rng stream for pirate rolls (per-sailing-day) so the
 # drought/storm/famine event_rng stream stays bit-stable.
+var state_relations: Dictionary = {}   # Stage A3: "spain:england" -> float in [-100,+100]
+var player_rep: Dictionary = {}         # Stage A3: state_id or "pirates" -> float in [-100,+100]
+var active_wars: Array = []             # Stage A3: WarSystem.ActiveWar instances (untyped)
+var war_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+# Stage A3: separate rng stream for war rolls (declarations, peace, incidents)
+# so the event_rng / pirate_rng streams stay bit-stable across this change.
 
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 # Stage 6: a SEPARATE rng stream for event rolls, so events never perturb the
@@ -34,6 +40,7 @@ func _ready() -> void:
 	rng.seed = world_seed
 	event_rng.seed = world_seed + 12579023   # distinct deterministic stream
 	pirate_rng.seed = world_seed + 91137     # Stage A1: yet another stream
+	war_rng.seed = world_seed + 4242       # Stage A3: war rolls stream
 
 func reset() -> void:
 	towns.clear()
@@ -51,6 +58,10 @@ func reset() -> void:
 	rng.seed = world_seed
 	event_rng.seed = world_seed + 12579023
 	pirate_rng.seed = world_seed + 91137   # Stage A1
+	state_relations.clear()             # Stage A3
+	player_rep.clear()                  # Stage A3
+	active_wars.clear()                 # Stage A3
+	war_rng.seed = world_seed + 4242    # Stage A3
 	# A fresh build must start on day 0 too — otherwise a second build_world in
 	# the same process (tests, or a new-game button later) leaves the week
 	# boundary misaligned with economy age, and state-triggered events (famine)
@@ -66,6 +77,14 @@ func build_world() -> void:
 	ships_db = _load_json("res://data/ships.json")
 	events_db = _load_json("res://data/events.json")
 	pirates_db = _load_json("res://data/pirates.json")   # Stage A1
+	# Stage A3: load bilateral state relations (historical ~1600).
+	# Keys in JSON may be in any order; _pair_key normalises to sorted
+	# alphabetical so "spain:england" and "england:spain" map to the same entry.
+	var rel_data: Dictionary = _load_json("res://data/relations.json")
+	for raw_key in rel_data.keys():
+		var parts: PackedStringArray = String(raw_key).split(":")
+		if parts.size() == 2:
+			state_relations[_pair_key(parts[0], parts[1])] = float(rel_data[raw_key])
 	# Stage A2: spawn colonial-power State objects. Each gets a starting treasury
 	# and a tax_rate (customs duty on ship trades). Treasury grows as trades flow
 	# through the state's ports; total_money() includes it so conservation holds.
@@ -74,6 +93,10 @@ func build_world() -> void:
 		var sd: Dictionary = states_data[sid]
 		var st := State.new(String(sid), String(sd["name"]), float(sd["starting_treasury"]), float(sd["tax_rate"]))
 		states.append(st)
+	# Stage A3: init player_rep to 0 for every state + pirates.
+	for s in states:
+		player_rep[s.id] = 0.0
+	player_rep["pirates"] = 0.0
 	var towns_data: Dictionary = _load_json("res://data/towns.json")
 
 	for town_id in towns_data.keys():
@@ -154,6 +177,7 @@ func build_world() -> void:
 	ship.current_town_id = "tortuga"
 	ship.state = "docked"
 	ship.route_id = "player_default"
+	ship.flag_state = "england"   # Stage A3: player flies English colours (Port Royal heritage)
 	player.ship_ids.append("ship_1")
 	ships.append(ship)
 	companies.append(player)
@@ -181,6 +205,7 @@ func build_world() -> void:
 			ai_ship.pos = home_t.coords
 		ai_ship.current_town_id = home_id
 		ai_ship.state = "docked"
+		ai_ship.flag_state = home_t.state_id if home_t != null else ""   # Stage A3: AI flies home-port colours
 		ai_co.ship_ids.append(aship_id)
 		ships.append(ai_ship)
 		companies.append(ai_co)
@@ -218,6 +243,37 @@ func get_state(id: String) -> State:
 		if s.id == id:
 			return s
 	return null
+
+# Stage A3: bilateral state relations. Pair key is sorted so "spain:england"
+# and "england:spain" map to the same entry.
+func _pair_key(a: String, b: String) -> String:
+	return a + ":" + b if a < b else b + ":" + a
+
+func get_relation(a: String, b: String) -> float:
+	return float(state_relations.get(_pair_key(a, b), 0.0))
+
+func set_relation(a: String, b: String, val: float) -> void:
+	state_relations[_pair_key(a, b)] = clamp(val, -100.0, 100.0)
+
+func adjust_relation(a: String, b: String, delta: float) -> void:
+	set_relation(a, b, get_relation(a, b) + delta)
+
+# Stage A3: player reputation with a state or with "pirates".
+func get_player_rep(actor_id: String) -> float:
+	return float(player_rep.get(actor_id, 0.0))
+
+func adjust_player_rep(actor_id: String, delta: float) -> void:
+	var v: float = get_player_rep(actor_id) + delta
+	player_rep[actor_id] = clamp(v, -100.0, 100.0)
+
+# Stage A3: is there an active war between two states?
+func at_war(a: String, b: String) -> bool:
+	if a == "" or b == "" or a == b:
+		return false
+	for w in active_wars:
+		if (w.state_a == a and w.state_b == b) or (w.state_a == b and w.state_b == a):
+			return true
+	return false
 
 # The player's ship — the one owned by the "player" company. Falls back to
 # ships[0] only if no player-owned ship exists (defensive; build_world always

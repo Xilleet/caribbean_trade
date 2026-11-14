@@ -572,6 +572,158 @@ Famine подскочил с 49 до 194 — естественный эффек
 Всего теперь **28 тестов** (5+2+5+4+4+4+4), все зелёные, drift=0.0000 на
 365-day sim, 15 городов на карте.
 
+---
+
+## Relations, Reputation, Wars, Diplomacy
+
+Добавляет bilateral state
+relations, player reputation с государствами и пиратами, war declarations
+emergent из низких отношений, peace treaties, customs tax scaling по rep,
+port access blocks по war/low-rep. Фаза 5 (player agency — bribes, citizenship)
+в TODO.
+
+### A3.1. Модель отношений (Phase 1)
+
+**Новые данные:**
+- `data/relations.json` (новый) — 6 bilateral пар для 4 states, исторические
+  значения ~1600: spain:england=-20, spain:netherlands=-40, spain:france=-10,
+  england:netherlands=+10, france:netherlands=+10, england:france=0.
+  Ключи в JSON могут быть в любом порядке — `_pair_key()` нормализует к
+  sorted alphabetical (`"england:spain"` для любой пары spain+england).
+
+**Новые поля на `WorldState`:**
+- `state_relations: Dictionary` — `{"england:spain": float, ...}` в `[-100, +100]`.
+- `player_rep: Dictionary` — `{"spain": float, ..., "pirates": float}`, в `[-100, +100]`.
+- `active_wars: Array` — `WarSystem.ActiveWar` instances.
+- `war_rng: RandomNumberGenerator` — отдельный stream (seed `world_seed + 4242`),
+  критично для детерминизма event_rng/pirate_rng.
+
+**Helpers:**
+- `_pair_key(a, b) -> String` — sorted alphabetical key.
+- `get_relation(a, b)`, `set_relation(a, b, val)` (clamped), `adjust_relation(a, b, delta)`.
+- `get_player_rep(actor_id)`, `adjust_player_rep(actor_id, delta)` (clamped).
+- `at_war(a, b) -> bool` — checks active_wars array.
+
+**`Ship.flag_state: String`** (новое поле) — цвет государства под которым
+ходит корабль. Player ship: `"england"` (Port Royal heritage). AI ships:
+наследуют от `home.state_id` (Havana Sugar → spain, Santiago Metals → spain,
+Carib Produce → england).
+
+### A3.2. WarSystem (Phase 2/4)
+
+**`simulation/systems/war_system.gd`** (новый) — `class_name WarSystem`,
+inner class `ActiveWar {state_a, state_b, days_left}`. Метод `roll_weekly()`
+в порядке: decay → incidents → war declarations → peace rolls.
+
+**Константы** (tuned для 1-3 войн/год в 365-day sim):
+- `WAR_THRESHOLD = -60` — ниже этого отношения может начаться война.
+- `PROB_WAR_DECLARATION = 0.4` — per week per eligible pair.
+- `PROB_PEACE = 0.2` — per week per active war.
+- `PROB_INCIDENT = 0.15` — per week per state pair (достаточно чтобы
+  incidents перевешивали decay).
+- `INCIDENT_DELTA = 20` — swing magnitude.
+- `PEACE_RELATION = -20` — куда сбрасываются отношения при мире (still cold,
+  но не война).
+- `DECAY_PER_WEEK = 0.3` — медленная нормализация к 0.
+
+**Counters** для verification: `wars_declared`, `peaces_signed`, `incidents`.
+
+**Wire-in:** `SimulationEngine.step_week` вызывает `war_system.roll_weekly()`
+ПОСЛЕ `event_system.roll_weekly()` — чтобы war declarations видели свежие
+отношения (incidents могли только что их сдвинуть).
+
+### A3.3. Sources of rep (Phase 2)
+
+- **Торговля в порту state X** → `player_rep[X] += 0.5` за сделку (buy или
+  sell). Только для player (AI не копит rep).
+- **Торговля в pirate haven** (Tortuga) → `player_rep["pirates"] += 1.0`.
+- **Пиратская атака на player ship** → `player_rep["pirates"] -= 2.0`.
+- **Weekly decay** — все rep дрейфуют к 0 на 0.3 пункта.
+- **Diplomatic incidents** — random ±20 к bilateral relation, 70% negative,
+  prob 0.15/week/pair.
+
+### A3.4. Effects на существующие механики.
+
+**Таможенный налог scaling** в `TradeSystem._collect_customs`:
+```
+effective_tax = state.tax_rate × trade_value × (1.0 + max(0, -player_rep/100))
+```
+- `rep ≥ 0`: tax × 1.0 (без бонуса, просто без штрафа).
+- `rep = -50`: tax × 1.5.
+- `rep = -100`: tax × 2.0 (hostile trader платит двойную пошлину).
+
+**Port access** в `ShipsTick._can_dock(ship, town)`:
+- War blocks: если `ship.flag_state` и `town.state_id` разные И между ними
+  `at_war` → корабль не может докиться.
+- Low rep blocks player: если `ship.owner_id == "player"` и
+  `player_rep[town.state_id] < -50` → порт отказывает в стоянке.
+- Blocked ship: не докится, reroute к следующей остановке route (через
+  `route.next_stop_after`), остаётся в sailing state. Если route пуст → idle.
+
+### A3.5. Тесты (8 новых, всего теперь 36)
+
+`tests/test_wars.gd` + `.tscn` (8 PASS):
+- `relations_spawn` — 6 пар с историческими значениями, sym_ok, rep_zero,
+  pair count.
+- `trade_raises_rep` — manual_buy в tortuga → +0.5 france rep, +1.0 pirate
+  rep (haven).
+- `tax_scales_with_rep` — rep=-50 → tax × 1.5 (38.11 actual vs 38.11 expected).
+- `low_rep_blocks_docking` — rep=-60 → `_can_dock` returns false; rep=0 → true.
+- `war_triggers_at_low_relation` — set relation=-90, 30 weekly rolls → war
+  declared.
+- `war_blocks_enemy_flag` — england-ship → spain-port blocked (war);
+  england-ship → england-port allowed; spain-ship → spain-port allowed.
+- `peace_resets_relations` — inject war, 40 peace rolls → peace signed,
+  relation = -20.
+- `pirate_attack_lowers_pirate_rep` — prob=1.0, 1 day → pirate rep -2.
+
+Все существующие 28 тестов остаются зелёными — A3 добавляет новые поля и
+методы, но не ломает существующие инварианты (conservation, determinism,
+structural checks).
+
+### A3.6. Эффект на sim (365 дней, seed = 1337)
+
+| Метрика | D1 (15 towns, no A3) | A3 (15 towns + wars) |
+|---|---|---|
+| `total_money` start | 528 700 | 528 700 (без изменений — rep/relations не деньги) |
+| drift | 0.0000 | 0.0000 |
+| Player profit | +13 108 | +13 108 (same — player не пострадал от wars в этом прогоне) |
+| Events fired | 319 | 319 |
+| **Wars declared** | — | **5** |
+| **Peaces signed** | — | **5** |
+| **Diplomatic incidents** | — | **61** |
+| **Active wars at end** | — | **0** (все 5 разрешались миром) |
+
+**Final relations snapshot** (после 365 дней):
+- england:france: -52 (было 0)
+- england:netherlands: +25 (было +10)
+- france:netherlands: -76 (было +10)
+- england:spain: -54 (было -20)
+- france:spain: -51 (было -10)
+- netherlands:spain: -49 (было -40)
+
+Динамика заметная — все пары (кроме england:netherlands) ушли в негатив,
+france:netherlands почти у порога войны (-76 vs threshold -60). Это emergent
+behavior: incidents + decay создают реальную дипломатическую ситуацию.
+
+### A3.7. Что НЕ сделано (TODO)
+
+- **Phase 5 — Player agency** (bribes, citizenship): bribes state для +rep,
+  apply for citizenship при rep>+50 (меняет `flag_state`). ~80 строк.
+- **War tariffs** (doubling customs tax during war) — не сделано, только
+  port block. Можно добавить в `_collect_customs`: `if at_war(flag, state):
+  tax × 2`.
+- **Privateering boost** — во время войны у state растёт шанс pirate
+  attacks на вражеских торговцев (commissioned privateers).
+- **UI visualization** — relations/rep не показываются в windowed UI. Нужно
+  добавить панель «Diplomacy» с relations matrix и player_rep per state.
+- **War fleets** — state patrolling ships, interception of enemy traders.
+  Big feature, A3.x или A4.
+
+Всего теперь **36 тестов** (5+2+5+4+4+4+4+8), все зелёные, drift=0.0000 на
+365-day sim, 5 wars + 5 peaces + 61 incidents за год.
+
+
 
 
 

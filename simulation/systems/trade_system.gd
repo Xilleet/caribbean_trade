@@ -21,12 +21,28 @@ func _init(p_market: MarketSystem) -> void:
 # market.fund). The caller subtracts the returned tax from company.money.
 # Money flow: company.money -> state.treasury. state.treasury is in
 # WorldState.total_money() so the conservation invariant holds.
-func _collect_customs(town: Town, trade_value: float) -> float:
+#
+# Stage A3: tax now SCALES with player_rep — at rep=0 base rate, at
+# rep=-100 doubled (hostile trader pays double duty), at rep>=0 unchanged
+# (no bonus below base). And trading raises player_rep with the port's
+# state (+0.5/trade) and with pirates (+1 if town is a pirate haven).
+# AI companies do not earn rep — only the player does.
+func _collect_customs(town: Town, trade_value: float, company: Company) -> float:
 	var st: State = WorldState.get_state(town.state_id)
 	if st == null or st.tax_rate <= 0.0 or trade_value <= 0.0:
 		return 0.0
-	var tax: float = trade_value * st.tax_rate
+	# Stage A3: scale tax by player reputation (only for the player).
+	var rep: float = WorldState.get_player_rep(st.id) if company != null and not company.is_ai else 0.0
+	var tax_mult: float = 1.0 + max(0.0, -rep / 100.0)   # 1.0 at rep>=0, 2.0 at rep=-100
+	var tax: float = trade_value * st.tax_rate * tax_mult
 	st.treasury += tax
+	# Stage A3: trading builds player reputation. +0.5 with the port's state,
+	# +1.0 with pirates if this town is a pirate haven (Tortuga historically).
+	if company != null and not company.is_ai:
+		WorldState.adjust_player_rep(st.id, 0.5)
+		var haven_towns: Array = WorldState.pirates_db.get("pirate_attack", {}).get("haven_towns", [])
+		if haven_towns.has(town.id):
+			WorldState.adjust_player_rep("pirates", 1.0)
 	return tax
 
 # `rule` is a TradeRoute.StopRule (untyped here only because inner-class type
@@ -57,7 +73,7 @@ func execute_buy(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	var cost: float = float(res["cost"])
 	company.money -= cost
 	town.market.fund += cost
-	var tax: float = _collect_customs(town, cost)   # Stage A2
+	var tax: float = _collect_customs(town, cost, company)   # Stage A2+A3
 	company.money -= tax
 	ship.add_cargo(rule.good_id, actual)
 	ship.last_buy_cost = cost
@@ -92,7 +108,7 @@ func execute_sell(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	ship.remove_cargo(rule.good_id, actual)
 	town.market.fund -= revenue
 	company.money += revenue
-	var tax: float = _collect_customs(town, revenue)   # Stage A2
+	var tax: float = _collect_customs(town, revenue, company)   # Stage A2+A3
 	company.money -= tax
 	ship.last_sell_revenue = revenue
 	ship.lifetime_sell_revenue += revenue
@@ -144,7 +160,7 @@ func manual_buy(ship: Ship, company: Company, town: Town, good_id: String, qty: 
 		return {"qty": 0.0, "cost": 0.0, "price": price}
 	company.money -= cost
 	town.market.fund += cost
-	var tax: float = _collect_customs(town, cost)   # Stage A2
+	var tax: float = _collect_customs(town, cost, company)   # Stage A2+A3
 	company.money -= tax
 	ship.add_cargo(good_id, actual)
 	ship.last_buy_cost = cost
@@ -171,7 +187,7 @@ func manual_sell(ship: Ship, company: Company, town: Town, good_id: String, qty:
 	ship.remove_cargo(good_id, actual)
 	town.market.fund -= revenue
 	company.money += revenue
-	var tax: float = _collect_customs(town, revenue)   # Stage A2
+	var tax: float = _collect_customs(town, revenue, company)   # Stage A2+A3
 	company.money -= tax
 	ship.last_sell_revenue = revenue
 	ship.lifetime_sell_revenue += revenue

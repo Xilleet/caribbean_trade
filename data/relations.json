@@ -1,0 +1,8 @@
+{
+  "england:france": 0,
+  "england:netherlands": 10,
+  "france:netherlands": 10,
+  "england:spain": -20,
+  "france:spain": -10,
+  "netherlands:spain": -40
+}

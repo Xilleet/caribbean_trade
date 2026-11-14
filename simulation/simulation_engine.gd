@@ -12,6 +12,7 @@ var finance_system: FinanceSystem
 var population_system: PopulationSystem
 var trade_system: TradeSystem
 var event_system: EventSystem
+var war_system: WarSystem               # Stage A3
 var daily_tick: DailyTick
 var weekly_tick: WeeklyTick
 var ships_tick: ShipsTick
@@ -24,6 +25,7 @@ func _init() -> void:
 	population_system = PopulationSystem.new()
 	trade_system = TradeSystem.new(market_system)
 	event_system = EventSystem.new(WorldState.event_rng, WorldState.events_db)
+	war_system = WarSystem.new(WorldState.war_rng)   # Stage A3
 	daily_tick = DailyTick.new(market_system, production_system, consumption_system,
 			finance_system, WorldState.recipes)
 	weekly_tick = WeeklyTick.new(population_system, finance_system, WorldState.recipes, WorldState.rng)
@@ -52,6 +54,9 @@ func step_week() -> void:
 	# state-triggered famine sees this week's stock. Seeded (event_rng) so the
 	# sequence is reproducible.
 	event_system.roll_weekly()
+	# Stage A3: war rolls AFTER event rolls, so war declarations see the
+	# latest relations (which diplomatic incidents may have just shifted).
+	war_system.roll_weekly()
 	SimulationClock.advance_week()
 	EventBus.week_advanced.emit(SimulationClock.week)
 
