@@ -33,7 +33,7 @@ func execute_buy(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	var qty: float = min(min(rule.max_qty, drainable), ship.cargo_free())
 	if qty <= 0.0:
 		return {"qty": 0.0, "cost": 0.0}
-	var res: Dictionary = market_system.buy(town.market, rule.good_id, qty, company.money)
+	var res: Dictionary = market_system.buy(town.market, rule.good_id, qty, company.money, rule.price_limit)
 	var actual: float = float(res["qty"])
 	var cost: float = float(res["cost"])
 	company.money -= cost
@@ -64,7 +64,7 @@ func execute_sell(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	var qty: float = min(min(rule.max_qty, have), fillable)
 	if qty <= 0.0:
 		return {"qty": 0.0, "revenue": 0.0}
-	var res: Dictionary = market_system.sell(town.market, rule.good_id, qty)
+	var res: Dictionary = market_system.sell(town.market, rule.good_id, qty, rule.price_limit)
 	var actual: float = float(res["qty"])
 	var revenue: float = float(res["revenue"])
 	ship.remove_cargo(rule.good_id, actual)

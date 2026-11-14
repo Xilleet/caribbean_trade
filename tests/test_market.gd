@@ -48,23 +48,31 @@ func test_price_surplus() -> bool:
 	return passed
 
 func test_buy_stock_limit() -> bool:
+	# Tranched pricing — draining stock 5→0 raises price per tranche.
+	# Stock=5 vs default target=10 → first tranche at price ~176 (above base 83),
+	# last tranche clamped at max=300. Total cost is between 5*base and 5*max.
 	var ms := MarketSystem.new()
 	var m := Market.new()
-	m.add_good("metal", 83.0, 10.0, 300.0, 5.0)
-	var res := ms.buy(m, "metal", 100.0, 10000.0)  # wants 100, only 5 in stock
-	var passed: bool = float(res["qty"]) == 5.0 and abs(float(res["cost"]) - 5.0 * 83.0) < 0.001
-	_report("buy_stock_limit", passed, "qty=%.2f cost=%.2f" % [float(res["qty"]), float(res["cost"])])
+	m.add_good("metal", 83.0, 10.0, 300.0, 5.0)  # 5 in stock, target 10 = mild shortage
+	var res := ms.buy(m, "metal", 100.0, 10000.0)  # wants 100, only 5 in stock, plenty money
+	var qty: float = float(res["qty"])
+	var cost: float = float(res["cost"])
+	var passed: bool = qty == 5.0 and cost > 5.0 * 83.0 and cost < 5.0 * 300.0
+	_report("buy_stock_limit", passed, "qty=%.2f cost=%.2f (expect qty=5, 415<cost<1500)" % [qty, cost])
 	return passed
 
 func test_buy_money_limit() -> bool:
+	# Stage 7.1: in mild shortage, tranche prices rise as buyer drains stock →
+	# the buyer can afford FEWER units than the flat-pricing baseline 200/base.
+	# Stock 8 vs target 10 → first tranche ~112, second tranche pricier, etc.
 	var ms := MarketSystem.new()
 	var m := Market.new()
-	m.add_good("metal", 83.0, 10.0, 300.0, 1000.0)
-	# wants 100, stock 1000, but only 200 money -> can afford 200/83 = 2.41
-	var res := ms.buy(m, "metal", 100.0, 200.0)
-	var expected := 200.0 / 83.0
-	var passed: bool = abs(float(res["qty"]) - expected) < 0.01
-	_report("buy_money_limit", passed, "qty=%.3f (expect ~%.3f)" % [float(res["qty"]), expected])
+	m.add_good("metal", 83.0, 10.0, 300.0, 8.0)  # stock 8 vs target 10 = mild shortage
+	var res := ms.buy(m, "metal", 100.0, 200.0)  # wants 100, money 200
+	var qty: float = float(res["qty"])
+	var flat_baseline: float = 200.0 / 83.0   # ~2.41
+	var passed: bool = qty > 0.0 and qty < flat_baseline
+	_report("buy_money_limit", passed, "qty=%.3f (expect 0<qty<%.3f due to rising tranche prices)" % [qty, flat_baseline])
 	return passed
 
 func test_production_needs_inputs() -> bool:

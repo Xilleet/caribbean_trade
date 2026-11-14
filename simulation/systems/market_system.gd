@@ -20,6 +20,15 @@ const EXT_EXPORT_BAND: float = 2.0   # export only on deep glut (> 2.0 * target)
 const EXT_RATE: float = 0.05         # closes 5% of the gap per day (mild stabiliser)
 const EXT_IMPORT_PRICE_MULT: float = 1.1
 const EXT_EXPORT_PRICE_MULT: float = 0.9
+# Tranche size for volume-weighted pricing. Each tranche is
+# max(1.0, target * SLICE_FRAC) units; price is recalculated per tranche via
+# calculate_price(e) AFTER previous tranches have moved e.stock. A trade that
+# fits in one tranche (small qty vs target) pays the same flat price as before;
+# a trade that drains/fills multiple tranches sees price rise/fall within the
+# single transaction. Money conservation is preserved: total_cost =
+# sum(tranche_qty * tranche_price), routed through market.fund exactly as before.
+const SLICE_FRAC: float = 0.1
+const MAX_TRANCHES: int = 1000   # safety cap; never hit in practice
 
 func calculate_price(e: Market.Entry) -> float:
 	var target: float = max(e.target_stock, 1.0)
@@ -63,29 +72,85 @@ func external_trade(t: Town) -> void:
 			t.market.fund += qty * price
 			t.external_balance += qty * price
 
-## Buy [param qty] of [param good_id] for a buyer who has [param buyer_money].
-## Limited by stock and by what the buyer can afford. Returns
-## {"qty", "price", "cost"} of the actually executed trade. Does NOT move
-## money — the caller routes the cost through the right account.
-func buy(m: Market, good_id: String, qty: float, buyer_money: float) -> Dictionary:
+## Buy [param qty] of [param good_id] for a buyer who has [param buyer_money],
+## optionally capped at [param max_price] per unit (0 = no cap). Stage 7.1:
+## volume-weighted — the buy is split into tranches of SLICE_FRAC * target_stock
+## (min 1 unit), and each tranche is priced via calculate_price(e) AFTER the
+## previous tranche drained stock. So a buy that's small relative to the
+## target buffer pays the same flat price as before; a buy that drains a
+## noticeable fraction of stock pays a rising price within one transaction.
+## Money conservation: total_cost = sum(tranche_qty * tranche_price); the
+## caller routes that single sum through market.fund. Returns
+## {"qty", "price" (volume-weighted average), "cost"} of the executed trade.
+## Does NOT move money — the caller routes the cost through the right account.
+func buy(m: Market, good_id: String, qty: float, buyer_money: float, max_price: float = 0.0) -> Dictionary:
 	if not m.has_good(good_id) or qty <= 0.0:
 		return {"qty": 0.0, "price": 0.0, "cost": 0.0}
 	var e: Market.Entry = m.get_entry(good_id)
-	var price: float = e.current_price
-	var affordable: float = buyer_money / price if price > 0.0 else qty
-	var actual: float = min(min(qty, e.stock), affordable)
-	if actual <= 0.0:
-		return {"qty": 0.0, "price": price, "cost": 0.0}
-	e.stock -= actual
-	return {"qty": actual, "price": price, "cost": actual * price}
+	if e.stock <= 0.0 or buyer_money <= 0.0:
+		return {"qty": 0.0, "price": calculate_price(e), "cost": 0.0}
+	var target: float = max(e.target_stock, 1.0)
+	var slice: float = max(1.0, target * SLICE_FRAC)
+	var remaining_qty: float = qty
+	var remaining_money: float = buyer_money
+	var total_qty: float = 0.0
+	var total_cost: float = 0.0
+	var n: int = 0
+	while remaining_qty > 0.0 and e.stock > 0.0 and remaining_money > 0.0 and n < MAX_TRANCHES:
+		var price: float = calculate_price(e)
+		if price <= 0.0:
+			break
+		if max_price > 0.0 and price > max_price:
+			break
+		var tranche: float = min(min(remaining_qty, e.stock), slice)
+		var affordable_now: float = remaining_money / price
+		tranche = min(tranche, affordable_now)
+		if tranche <= 0.0:
+			break
+		e.stock -= tranche
+		total_qty += tranche
+		total_cost += tranche * price
+		remaining_money -= tranche * price
+		remaining_qty -= tranche
+		n += 1
+	if total_qty <= 0.0:
+		return {"qty": 0.0, "price": calculate_price(e), "cost": 0.0}
+	return {"qty": total_qty, "price": total_cost / total_qty, "cost": total_cost}
 
-## Sell [param qty] of [param good_id] into the market. Returns
-## {"qty", "price", "revenue"}. Market capacity is unbounded in Stage 1
-## (surplus is handled by price collapse + external export, not by rejection).
-func sell(m: Market, good_id: String, qty: float) -> Dictionary:
+## Sell [param qty] of [param good_id] into the market, optionally floored at
+## [param min_price] per unit (0 = no floor). Stage 7.1: volume-weighted —
+## each tranche of SLICE_FRAC * target_stock is priced via calculate_price(e)
+## AFTER the previous tranche filled stock, so a sell that's small relative
+## to target pays the same flat price; a sell that floods the market pays a
+## falling price within one transaction. Money conservation: total_revenue =
+## sum(tranche_qty * tranche_price). Returns {"qty", "price" (avg), "revenue"}.
+## Market capacity is unbounded (surplus is handled by price collapse +
+## external export, not by rejection), so the sell executes in full unless
+## [param min_price] is hit — then it stops at the price floor.
+func sell(m: Market, good_id: String, qty: float, min_price: float = 0.0) -> Dictionary:
 	if not m.has_good(good_id) or qty <= 0.0:
 		return {"qty": 0.0, "price": 0.0, "revenue": 0.0}
 	var e: Market.Entry = m.get_entry(good_id)
-	var price: float = e.current_price
-	e.stock += qty
-	return {"qty": qty, "price": price, "revenue": qty * price}
+	var target: float = max(e.target_stock, 1.0)
+	var slice: float = max(1.0, target * SLICE_FRAC)
+	var remaining: float = qty
+	var total_qty: float = 0.0
+	var total_revenue: float = 0.0
+	var n: int = 0
+	while remaining > 0.0 and n < MAX_TRANCHES:
+		var price: float = calculate_price(e)
+		if price <= 0.0:
+			break
+		if min_price > 0.0 and price < min_price:
+			break
+		var tranche: float = min(remaining, slice)
+		if tranche <= 0.0:
+			break
+		e.stock += tranche
+		total_qty += tranche
+		total_revenue += tranche * price
+		remaining -= tranche
+		n += 1
+	if total_qty <= 0.0:
+		return {"qty": 0.0, "price": calculate_price(e), "revenue": 0.0}
+	return {"qty": total_qty, "price": total_revenue / total_qty, "revenue": total_revenue}

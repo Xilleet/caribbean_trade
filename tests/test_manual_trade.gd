@@ -94,14 +94,20 @@ func test_buy_capped_by_money() -> bool:
 	var ship: Ship = ctx["ship"]
 	var company: Company = ctx["company"]
 	var town: Town = ctx["town"]
-	company.money = 100.0          # sugar @ 50 -> can afford exactly 2
+	company.money = 100.0
+	# Push sugar into MILD shortage (stock 8 vs default target 10)
+	# so tranche prices rise during the buy — money becomes the binding
+	# constraint AND qty < flat-baseline 100/50=2 (the old expectation).
+	town.market.get_entry("sugar").stock = 8.0
 	var trade := TradeSystem.new(MarketSystem.new())
 	var res: Dictionary = trade.manual_buy(ship, company, town, "sugar", 10.0)
-	var passed: bool = abs(float(res["qty"]) - 2.0) < 0.01 \
-		and abs(company.money - 0.0) < 0.01
+	# First tranche: price = 50*exp(1.5*(10-8)/10) ≈ 67.6. Affordable: ~1.48.
+	# Subsequent tranches pricier → qty < flat baseline 100/50=2. Money ~exhausted.
+	var qty: float = float(res["qty"])
+	var passed: bool = qty > 0.0 and qty < 2.0 and company.money < 5.0
 	_report("buy_capped_by_money", passed,
-			"money=100 price=%.0f bought=%.3f money_left=%.2f" %
-			[float(res["price"]), float(res["qty"]), company.money])
+			"money=100 avg_price=%.1f bought=%.3f money_left=%.2f (expect 0<qty<2, money<5)" %
+			[float(res["price"]), qty, company.money])
 	return passed
 
 func test_roundtrip_conserves_money() -> bool:
