@@ -1,0 +1,23 @@
+{
+  "sloop": {
+    "name": "Sloop",
+    "speed": 18.0,
+    "cargo_capacity": 60,
+    "upkeep_daily": 8.0,
+    "cost": 1500
+  },
+  "brigantine": {
+    "name": "Brigantine",
+    "speed": 14.0,
+    "cargo_capacity": 140,
+    "upkeep_daily": 16.0,
+    "cost": 4200
+  },
+  "fluyt": {
+    "name": "Fluyt",
+    "speed": 11.0,
+    "cargo_capacity": 260,
+    "upkeep_daily": 26.0,
+    "cost": 8500
+  }
+}

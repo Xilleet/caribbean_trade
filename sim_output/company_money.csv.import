@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bi58x742dvtg1"
+
+[deps]
+
+files=["res://sim_output/company_money.money.translation", "res://sim_output/company_money.cargo.translation", "res://sim_output/company_money.state.translation", "res://sim_output/company_money.town.translation"]
+
+source_file="res://sim_output/company_money.csv"
+dest_files=["res://sim_output/company_money.money.translation", "res://sim_output/company_money.cargo.translation", "res://sim_output/company_money.state.translation", "res://sim_output/company_money.town.translation"]
+
+[params]
+
+compress=true
+delimiter=0
+unescape_keys=false
+unescape_translations=true

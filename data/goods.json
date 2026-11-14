@@ -1,0 +1,14 @@
+{
+  "wood":         {"name": "Wood",         "base_price": 33,  "min_price": 5,  "max_price": 150, "volume": 1},
+  "metal":        {"name": "Metal",        "base_price": 83,  "min_price": 10, "max_price": 300, "volume": 1},
+  "cotton":       {"name": "Cotton",       "base_price": 45,  "min_price": 5,  "max_price": 180, "volume": 1},
+  "hemp":         {"name": "Hemp",         "base_price": 38,  "min_price": 5,  "max_price": 160, "volume": 1},
+  "sugar":        {"name": "Sugar",        "base_price": 50,  "min_price": 5,  "max_price": 200, "volume": 1},
+  "fruits":       {"name": "Fruits",       "base_price": 28,  "min_price": 4,  "max_price": 120, "volume": 1},
+  "corn":         {"name": "Corn",         "base_price": 22,  "min_price": 3,  "max_price": 90,  "volume": 1},
+  "tobacco":      {"name": "Tobacco",      "base_price": 70,  "min_price": 8,  "max_price": 260, "volume": 1},
+  "rum":          {"name": "Rum",          "base_price": 120, "min_price": 15, "max_price": 450, "volume": 1},
+  "textiles":     {"name": "Textiles",     "base_price": 150, "min_price": 20, "max_price": 500, "volume": 1},
+  "metal_goods":  {"name": "Metal Goods",  "base_price": 200, "min_price": 25, "max_price": 600, "volume": 1},
+  "bread":        {"name": "Bread",        "base_price": 50,  "min_price": 5,  "max_price": 180, "volume": 1}
+}

@@ -1,0 +1,24 @@
+config_version=5
+
+[application]
+
+config/name="Caribbean Trade"
+config/description="Economic strategy prototype — Stage 1: economic core"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.3")
+config/icon="res://icon.svg"
+
+[autoload]
+
+EventBus="*res://core/event_bus.gd"
+SimulationClock="*res://core/simulation_clock.gd"
+WorldState="*res://core/world_state.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"

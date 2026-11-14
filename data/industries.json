@@ -1,0 +1,14 @@
+{
+  "lumber_camp":         {"recipe_id":"lumber_camp","default_workers":8,"default_money":1200},
+  "mine":                {"recipe_id":"mine","default_workers":12,"default_money":1600},
+  "cotton_plantation":   {"recipe_id":"cotton_plantation","default_workers":10,"default_money":1400},
+  "hemp_farm":           {"recipe_id":"hemp_farm","default_workers":8,"default_money":1200},
+  "sugar_plantation":    {"recipe_id":"sugar_plantation","default_workers":12,"default_money":1500},
+  "orchard":             {"recipe_id":"orchard","default_workers":6,"default_money":1000},
+  "corn_farm":           {"recipe_id":"corn_farm","default_workers":14,"default_money":1600},
+  "tobacco_plantation":  {"recipe_id":"tobacco_plantation","default_workers":10,"default_money":1400},
+  "distillery":          {"recipe_id":"distillery","default_workers":8,"default_money":1600},
+  "textile_mill":        {"recipe_id":"textile_mill","default_workers":10,"default_money":1800},
+  "smithy":              {"recipe_id":"smithy","default_workers":10,"default_money":2000},
+  "bakery":              {"recipe_id":"bakery","default_workers":10,"default_money":1500}
+}

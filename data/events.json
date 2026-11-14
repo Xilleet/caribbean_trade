@@ -1,0 +1,28 @@
+{
+  "drought": {
+    "name": "Засуха",
+    "scope": "town",
+    "magnitude": 0.5,
+    "min_days": 5,
+    "max_days": 12,
+    "prob_per_week": 0.10
+  },
+  "storm": {
+    "name": "Шторм",
+    "scope": "ship",
+    "magnitude": 0.5,
+    "min_days": 3,
+    "max_days": 8,
+    "prob_per_week": 0.18,
+    "extra_upkeep_mult": 1.0
+  },
+  "famine": {
+    "name": "Голод",
+    "scope": "town_good",
+    "trigger_goods": ["bread", "corn"],
+    "trigger_stock_ratio": 0.5,
+    "magnitude": 2.0,
+    "min_days": 4,
+    "max_days": 10
+  }
+}

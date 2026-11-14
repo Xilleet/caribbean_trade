@@ -1,0 +1,23 @@
+{
+  "havana_sugar": {
+    "name": "Havana Sugar Co.",
+    "money": 3500,
+    "ship_type": "sloop",
+    "route_id": "ai_havana_loop",
+    "home": "gibara"
+  },
+  "santiago_metals": {
+    "name": "Santiago Metals",
+    "money": 3500,
+    "ship_type": "sloop",
+    "route_id": "ai_metals_loop",
+    "home": "santiago"
+  },
+  "carib_produce": {
+    "name": "Carib Produce",
+    "money": 3500,
+    "ship_type": "sloop",
+    "route_id": "ai_produce_loop",
+    "home": "cayman"
+  }
+}

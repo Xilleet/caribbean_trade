@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dtqkgd6qwvvyu"
+
+[deps]
+
+files=["res://sim_output/sim_daily_preview.town.translation", "res://sim_output/sim_daily_preview.good.translation", "res://sim_output/sim_daily_preview.stock.translation", "res://sim_output/sim_daily_preview.price.translation", "res://sim_output/sim_daily_preview.demand.translation", "res://sim_output/sim_daily_preview.supply.translation"]
+
+source_file="res://sim_output/sim_daily_preview.csv"
+dest_files=["res://sim_output/sim_daily_preview.town.translation", "res://sim_output/sim_daily_preview.good.translation", "res://sim_output/sim_daily_preview.stock.translation", "res://sim_output/sim_daily_preview.price.translation", "res://sim_output/sim_daily_preview.demand.translation", "res://sim_output/sim_daily_preview.supply.translation"]
+
+[params]
+
+compress=true
+delimiter=0
+unescape_keys=false
+unescape_translations=true
