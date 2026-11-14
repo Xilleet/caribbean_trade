@@ -368,9 +368,14 @@ func _rebuild_route_panel() -> void:
 		_mklabel(_route_panel, "(no ship)", 12, Color(0.6, 0.6, 0.6))
 		return
 	var route: TradeRoute = WorldState.get_route(ship.route_id)
-	if route == null or route.stops.is_empty():
-		_mklabel(_route_panel, "(empty — click a town then + Add)", 12, Color(0.6, 0.6, 0.6))
+	if route == null:
+		_mklabel(_route_panel, "(no route)", 12, Color(0.6, 0.6, 0.6))
 		return
+	# Bugfix: do NOT early-return on empty stops — the "+ Add" button below
+	# is the ONLY way to put the first town back into an emptied route.
+	# Render the hint label and fall through.
+	if route.stops.is_empty():
+		_mklabel(_route_panel, "(empty — click a town then + Add)", 12, Color(0.6, 0.6, 0.6))
 	var dock: String = _dock_town_id()
 	for i in range(route.stops.size()):
 		var sid: String = String(route.stops[i])
