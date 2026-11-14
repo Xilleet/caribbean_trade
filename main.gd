@@ -307,6 +307,70 @@ func route_move(town_id: String, dir: int) -> void:
 	route.stops[idx] = route.stops[j]
 	route.stops[j] = tmp
 
+# --- player agency — bribes and citizenship -------------------
+# Bribe a state's port authorities for +5 rep. Cost scales with how hostile
+# they already are (hostile traders pay double). 4-week cooldown per state,
+# tracked on Company.bribe_cooldowns. Money flows company -> state.treasury
+# (corrupt officials pocket it), so the conservation invariant holds.
+func bribe_state(state_id: String) -> bool:
+	var st: State = WorldState.get_state(state_id)
+	if st == null:
+		EventBus.message.emit("bribe: unknown state %s" % state_id)
+		return false
+	var company: Company = WorldState.get_company("player")
+	if company == null:
+		return false
+	# Cooldown check — 4 weeks per state.
+	var last_week: int = int(company.bribe_cooldowns.get(state_id, -999))
+	if SimulationClock.week - last_week < 4:
+		EventBus.message.emit("bribe %s: cooldown (%d weeks left)" % [st.name, 4 - (SimulationClock.week - last_week)])
+		return false
+	# Cost scales with negative rep. rep>=0 → 500; rep=-50 → 1000; rep=-100 → 1500.
+	var rep: float = WorldState.get_player_rep(state_id)
+	var cost: float = 500.0 * (1.0 + max(0.0, -rep / 50.0))
+	if company.money < cost:
+		EventBus.message.emit("bribe %s: need %.0f, have %.0f" % [st.name, cost, company.money])
+		return false
+	company.money -= cost
+	st.treasury += cost
+	WorldState.adjust_player_rep(state_id, 5.0)
+	company.bribe_cooldowns[state_id] = SimulationClock.week
+	EventBus.message.emit("bribe %s: -%.0f, +5 rep (now %.0f)" % [st.name, cost, WorldState.get_player_rep(state_id)])
+	return true
+
+# Apply for citizenship of a state. Requires rep > +50 and costs 5000 (fee).
+# Changes the player ship's flag_state, giving access to that state's ports
+# even during wars with the old flag. Side effect: all OTHER states' rep
+# drops by 10 (you switched sides, your old friends are unhappy).
+func apply_citizenship(state_id: String) -> bool:
+	var st: State = WorldState.get_state(state_id)
+	if st == null:
+		return false
+	var company: Company = WorldState.get_company("player")
+	if company == null:
+		return false
+	var ship: Ship = _player_ship()
+	if ship == null:
+		return false
+	var rep: float = WorldState.get_player_rep(state_id)
+	if rep <= 50.0:
+		EventBus.message.emit("citizenship %s: requires rep > 50 (now %.0f)" % [st.name, rep])
+		return false
+	var cost: float = 5000.0
+	if company.money < cost:
+		EventBus.message.emit("citizenship %s: need %.0f, have %.0f" % [st.name, cost, company.money])
+		return false
+	var old_flag: String = ship.flag_state
+	company.money -= cost
+	st.treasury += cost
+	ship.flag_state = state_id
+	# All OTHER states lose 10 rep — you switched sides.
+	for other in WorldState.states:
+		if other.id != state_id:
+			WorldState.adjust_player_rep(other.id, -10.0)
+	EventBus.message.emit("citizenship: now flying %s colours (was %s, -%.0f rep with others)" % [st.name, old_flag if old_flag != "" else "none", cost])
+	return true
+
 # Read-only queries the UI panels use for layout.
 func player_dock_town_id() -> String:
 	var s: Ship = _player_ship()

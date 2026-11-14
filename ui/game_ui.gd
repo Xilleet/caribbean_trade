@@ -46,6 +46,7 @@ var _town_body: Label            # read-only price table (shown when not docked 
 var _trade_panel: VBoxContainer  # per-good buy/sell buttons (shown when docked here)
 var _ship_body: Label
 var _route_panel: VBoxContainer
+var _diplo_panel: VBoxContainer   # Stage A3.1: diplomacy (bribe + citizenship)
 var _log_label: Label
 var _log_lines: Array[String] = []
 
@@ -80,6 +81,7 @@ func select_town(town_id: String) -> void:
 	_render_town()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
+	_rebuild_diplo_panel()   # Stage A3.1
 
 # -------------------------------------------------------------------- layout --
 
@@ -105,7 +107,7 @@ func _build_layout() -> void:
 
 	# Right: a vertical stack of panels.
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(560.0, 0.0)
+	right.custom_minimum_size = Vector2(640.0, 0.0)   # Stage A3.1: widened from 560 to fit Diplomacy panel + town rows
 	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 4)
 	split.add_child(right)
@@ -151,6 +153,14 @@ func _build_layout() -> void:
 	_route_panel = VBoxContainer.new()
 	_route_panel.add_theme_constant_override("separation", 2)
 	right.add_child(_route_panel)
+
+	right.add_child(_sep())
+
+	# --- Stage A3.1: diplomacy panel (bribe + citizenship per state) ---
+	_mklabel(right, "— Diplomacy —", 15, Color(1.0, 0.8, 0.2))
+	_diplo_panel = VBoxContainer.new()
+	_diplo_panel.add_theme_constant_override("separation", 2)
+	right.add_child(_diplo_panel)
 
 	right.add_child(_sep())
 
@@ -220,6 +230,7 @@ func _on_ship_docked(ship_id: String, _town_id: String) -> void:
 	_render_town()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
+	_rebuild_diplo_panel()   # Stage A3.1
 	_highlight_speed()
 
 func _on_trade_completed(_town_id: String, _good_id: String, _qty: float, _price: float) -> void:
@@ -254,6 +265,7 @@ func _refresh_all() -> void:
 	_render_ship()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
+	_rebuild_diplo_panel()   # Stage A3.1
 	_on_message("UI ready — docked at Tortuga. Trade, edit the route, then Depart.")
 	_on_message("Space pause · 1/2/3 speed · click a town to inspect it.")
 	_highlight_speed()
@@ -297,6 +309,7 @@ func _after_route_edit() -> void:
 	_render_money()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
+	_rebuild_diplo_panel()   # Stage A3.1
 	_highlight_speed()
 
 # -------------------------------------------------------------- panel builders --
@@ -398,6 +411,46 @@ func _rebuild_route_panel() -> void:
 	var add_btn := _mkbutton(add_row, "+ Add %s" % sel_name, Callable(self, "_on_route_add"),
 			130.0, 22.0, 12, Color(0.5, 0.85, 1.0))
 	add_btn.disabled = already or _selected_town == ""
+
+func _rebuild_diplo_panel() -> void:
+	_clear(_diplo_panel)
+	var company: Company = WorldState.get_company("player")
+	if company == null:
+		_mklabel(_diplo_panel, "(no company)", 12, Color(0.6, 0.6, 0.6))
+		return
+	var ship: Ship = WorldState.get_player_ship()
+	var flag_now: String = ship.flag_state if ship != null else ""
+	for s in WorldState.states:
+		var rep: float = WorldState.get_player_rep(s.id)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		_diplo_panel.add_child(row)
+		var flag_mark: String = "★" if s.id == flag_now else "  "
+		_mklabel(row, "%s %-12s" % [flag_mark, s.name], 12, Color(0.85, 0.85, 0.85))
+		var rep_color: Color = Color(0.45, 0.85, 0.45) if rep >= 0.0 else Color(0.95, 0.55, 0.45)
+		_mklabel(row, "rep %+5.0f" % rep, 12, rep_color)
+		var bribe_cost: float = 500.0 * (1.0 + max(0.0, -rep / 50.0))
+		var last_week: int = int(company.bribe_cooldowns.get(s.id, -999))
+		var on_cd: bool = SimulationClock.week - last_week < 4
+		var bribe_btn := _mkbutton(row, "Bribe %.0f" % bribe_cost, Callable(self, "_on_bribe").bind(s.id),
+			80.0, 20.0, 11, Color(0.85, 0.75, 0.45))
+		bribe_btn.disabled = on_cd or company.money < bribe_cost
+		var cit_btn := _mkbutton(row, "Citizenship", Callable(self, "_on_citizenship").bind(s.id),
+			90.0, 20.0, 11, Color(0.55, 0.75, 0.95))
+		cit_btn.disabled = rep <= 50.0 or company.money < 5000.0 or s.id == flag_now
+
+func _on_bribe(state_id: String) -> void:
+	_controller.call("bribe_state", state_id)
+	call_deferred("_after_diplo_edit")
+
+func _on_citizenship(state_id: String) -> void:
+	_controller.call("apply_citizenship", state_id)
+	call_deferred("_after_diplo_edit")
+
+func _after_diplo_edit() -> void:
+	_render_money()
+	_render_ship()
+	_rebuild_diplo_panel()
 
 # -------------------------------------------------------------- rendering --
 

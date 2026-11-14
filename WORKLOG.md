@@ -723,6 +723,108 @@ behavior: incidents + decay создают реальную дипломатич
 Всего теперь **36 тестов** (5+2+5+4+4+4+4+8), все зелёные, drift=0.0000 на
 365-day sim, 5 wars + 5 peaces + 61 incidents за год.
 
+---
+
+## Player agency (bribes + citizenship) + window expansion
+
+Игрок получает две новые кнопки в Diplomacy panel:
+**Bribe** (подкупить государство для +rep) и **Citizenship** (сменить флаг).
+Заодно расширено игровое окно — на 15 городов + town screen с 12 товарами +
+новая Diplomacy panel старая разметка 1280×720 уже не вмещала.
+
+### Bribe mechanic
+
+**`Company.bribe_cooldowns: Dictionary {state_id -> week}`** (новое поле) —
+per-state cooldown, чтобы богатый игрок не мог одним заходом подкупить все
+4 государства до +50.
+
+**`main.gd::bribe_state(state_id) -> bool`**:
+- Cooldown: 4 недели per-state. Если `SimulationClock.week - last_week < 4` →
+  отказ, emit message «bribe %s: cooldown (N weeks left)».
+- Cost scales с negative rep: `cost = 500 × (1 + max(0, -rep/50))`.
+  - rep ≥ 0 → 500.
+  - rep = -50 → 1000.
+  - rep = -100 → 1500.
+  С hostile государствами договариваться дороже — реалистично.
+- Money: `company.money -= cost; st.treasury += cost` — коррупция, деньги
+  уходят в казну государства. Conservation invariant держится (state.treasury
+  в `total_money()`).
+- Rep: `adjust_player_rep(state_id, +5.0)`.
+- Cooldown записывается: `bribe_cooldowns[state_id] = SimulationClock.week`.
+
+### Citizenship mechanic
+
+**`main.gd::apply_citizenship(state_id) -> bool`**:
+- Requires `player_rep[state_id] > +50` (высокая лояльность).
+- Cost: 5000 (фиксированный fee за натурализацию).
+- Changes `ship.flag_state = state_id` — игрок теперь плавает под новым
+  флагом, получает доступ к портам этого state даже во время войны с прошлым
+  флагом.
+- Side effect: **все OTHER states rep -= 10** каждый (ты сменил сторону,
+  старые друзья недовольны). Это создаёт стратегический выбор: смена
+  гражданства — серьёзное решение, не free action.
+- Money: `company.money -= 5000; st.treasury += 5000`. Conservation OK.
+
+### UI — Diplomacy panel
+
+**`game_ui.gd::_rebuild_diplo_panel()`** (новый метод) — рендерит одну строку
+на каждое state:
+- `★` если это текущий flag_state игрока (star marker).
+- State name (12 chars padded).
+- Rep value, цвет: зелёный при rep≥0, красно-оранжевый при rep<0.
+- Bribe button: `Bribe {cost}` (disabled если cooldown или денег не хватает).
+- Citizenship button: `Citizenship` (disabled если rep≤+50, денег <5000,
+  или уже гражданство этого state).
+
+Handlers: `_on_bribe(state_id)` → `_controller.call("bribe_state", state_id)`;
+`_on_citizenship(state_id)` → `_controller.call("apply_citizenship", state_id)`.
+После вызова — `_after_diplo_edit()` обновляет money/ship/diplo panels.
+
+Panel вставлен между Route и Log. Обновляется на `day_advanced`,
+`town_updated`, и после trade/route/diplo edits (через regex-патч всех
+`_rebuild_route_panel()` calls — добавил `_rebuild_diplo_panel()` после
+каждого).
+
+### Window expansion
+
+| Параметр | Было | Стало |
+|---|---|---|
+| `project.godot` viewport_width | 1280 | **1440** |
+| `project.godot` viewport_height | 720 | **900** |
+| `game_ui.gd` right panel min width | 560 | **640** |
+
++160 width даёт запас для длинных имён товаров в town screen (15 городов ×
+12 товаров × Buy 1/10/Sell 1/10/All кнопок). +180 height вмещает новый
+Diplomacy panel (4 строки × ~22px = ~90px + label + separator).
+
+### Тесты (6 новых, всего теперь 42)
+
+`tests/test_diplomacy.gd` + `.tscn` (6 PASS):
+- `bribe_raises_rep_and_deducts` — bribe spain → rep 0→5, money −500,
+  treasury +500, drift=0.
+- `bribe_respects_cooldown` — first bribe OK, second same week refused,
+  third after 4 weeks OK.
+- `bribe_costs_more_at_low_rep` — rep=-50 → cost = 1000 (vs 500 at rep=0).
+- `citizenship_changes_flag_state` — rep=+60 netherlands → flag
+  "england"→"netherlands".
+- `citizenship_requires_rep_threshold` — rep=0 → refused, no money spent.
+- `citizenship_drops_other_rep` — after netherlands citizenship: spain/england/
+  france rep все -=10.
+
+Все 36 существующих тестов остались зелёными — A3.1 добавляет методы и UI,
+не трогает инварианты.
+
+### Эффект на sim (365 дней, seed = 1337)
+
+Sim unchanged — bribes/citizenship это player-initiated actions, в headless
+sim игрок не делает их (только auto-trade route). Метрики те же:
+drift=0.0000, 5 wars, 5 peaces, 61 incidents, profit +13 108. Diplomacy
+panel видна только в windowed режиме при игре пользователя.
+
+Всего теперь **42 теста** (5+2+5+4+4+4+4+8+6), все зелёные, drift=0.0000 на
+365-day sim, окно 1440×900, Diplomacy panel с bribe + citizenship.
+
+
 
 
 

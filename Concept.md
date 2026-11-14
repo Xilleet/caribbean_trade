@@ -611,7 +611,12 @@ bilateral state relations + player reputation с государствами и
   + customs tax scaling по rep + port access blocks (war/low-rep). Новые:
   `data/relations.json`, `simulation/systems/war_system.gd`,
   `Ship.flag_state`, 8 тестов. 5 wars + 5 peaces + 61 incidents за 365 дней.
+player agency: bribes (cost scales с negative rep, 4-week
+  per-state cooldown, +5 rep) + citizenship (rep>+50, cost 5000, меняет
+  flag_state, -10 rep с другими states). Новая Diplomacy panel в UI
+  (4 строки state+rep+Bribe+Citizenship). Окно расширено 1280×720 → 1440×900,
+  правая панель 560 → 640. 6 новых тестов.
 
-Все 36 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700
-(включая 155k state treasuries + 229k от 10 новых городов), 15 городов на карте,
-4 государства с динамической дипломатией.
+Все 42 теста зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700,
+15 городов на карте, 4 государства с дипломатией + player agency (bribe +
+citizenship), окно 1440×900.
