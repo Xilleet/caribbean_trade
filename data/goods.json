@@ -7,8 +7,8 @@
   "fruits":       {"name": "Fruits",       "base_price": 28,  "min_price": 4,  "max_price": 120, "volume": 1},
   "corn":         {"name": "Corn",         "base_price": 22,  "min_price": 3,  "max_price": 90,  "volume": 1},
   "tobacco":      {"name": "Tobacco",      "base_price": 70,  "min_price": 8,  "max_price": 260, "volume": 1},
-  "rum":          {"name": "Rum",          "base_price": 120, "min_price": 15, "max_price": 450, "volume": 1},
-  "textiles":     {"name": "Textiles",     "base_price": 150, "min_price": 20, "max_price": 500, "volume": 1},
-  "metal_goods":  {"name": "Metal Goods",  "base_price": 200, "min_price": 25, "max_price": 600, "volume": 1},
+  "rum":          {"name": "Rum",          "base_price": 120, "min_price": 30, "max_price": 240, "volume": 1},
+  "textiles":     {"name": "Textiles",     "base_price": 150, "min_price": 40, "max_price": 300, "volume": 1},
+  "metal_goods":  {"name": "Metal Goods",  "base_price": 200, "min_price": 50, "max_price": 360, "volume": 1},
   "bread":        {"name": "Bread",        "base_price": 50,  "min_price": 5,  "max_price": 180, "volume": 1}
 }

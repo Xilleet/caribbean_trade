@@ -20,8 +20,8 @@
     "name": "Голод",
     "scope": "town_good",
     "trigger_goods": ["bread", "corn"],
-    "trigger_stock_ratio": 0.5,
-    "magnitude": 2.0,
+    "trigger_stock_ratio": 0.3,
+    "magnitude": 1.6,
     "min_days": 4,
     "max_days": 10
   }
