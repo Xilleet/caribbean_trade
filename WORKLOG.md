@@ -755,8 +755,36 @@ drift=0; не читают rng → детерминизм. Новое поле `
 conservation+rep+cooldown, cooldown-block, no-funds-block, citizenship
 flag+conservation, low-rep-block, citizenship penalizes bystander states (-10).
 
-Всего теперь **42 теста** (5+2+5+4+4+4+4+8+6), все зелёные, drift=0.0000 на
+Всего теперь **44 теста** (5+2+5+4+4+4+4+10+6), все зелёные, drift=0.0000 на
 365-day sim, 5 wars + 5 peaces + 61 incidents за год.
+
+### War tariffs — wartime customs surcharge on foreign traders
+
+**Механика.** В `_collect_customs` (trade_system.gd): если порт state в активной
+войне (`WorldState.state_at_war(port)` — новый helper, итерация `active_wars`) и
+трейдер иностранец (`flag ≠ port`), customs ×2. Своя гражанка (`flag == port`)
+exempt — citizenship даёт иммунитет от wartime-сбора. Вражеский флаг не дойдёт
+до торговли (`_can_dock` блокирует `at_war(flag,port)`). Деньги
+`company → state.treasury` (drift=0), rng не читает → детерминизм.
+
+**Почему не `at_war(flag,port)` напрямую:** `_can_dock` уже блокирует вражеский
+флаг → то условие было бы мёртвым кодом. Условие «порт в войне с кем-то» ловит
+нейтральных иностранцев в wartime-портах — тех, для кого citizenship к воюющему
+state (стать гражданином, снять 2×) или обход таких портов — стратегический
+выбор. Это и делает citizenship осмысленным экономически.
+
+**Тесты (2 новых в test_wars, 10/10):** foreign trader в wartime-порту платит
+2× (cost 508 → tax 50.8 vs 25.4 base); citizen (flag==port) exempt даже в войну.
+
+**Измерение (365 дней, seed 1337, с tariff vs baseline без tariff):** drift=0 в
+обоих; wars идентичны (5/5/61/0 — tariff не трогает war_rng, детерминизм
+сохранён). Player profit **не изменился** (+13108.6 → +13108.6, те же
+buys/sells): английский флаг + home-trade pattern + вражеские порты
+блокируются до торговли → tariff не срабатывает на игроке в этом seed. AI:
+Havana Sugar −216, Santiago Metals −207, Carib Produce 0 → ~−423 total
+(~1.4% AI-прибыли) ушло в state treasuries. **Вывод: tariff НЕ избыточен** —
+мягкий; для игрока в этом seed no-op, реальные проблемы только при торговле в
+нейтральном иностранном порту во время войны этого state.
 
 ---
 

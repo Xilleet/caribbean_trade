@@ -12,6 +12,8 @@ extends Node
 ##  - low player_rep (< -50) blocks docking
 ##  - war triggers when relation drops below -80
 ##  - war blocks docking for ships flying the enemy flag
+##  - war tariff: foreign trader in a wartime port pays 2x customs
+##  - war tariff: own citizen (flag == port) is exempt even during war
 ##  - peace resets relations to -20
 
 func _ready() -> void:
@@ -22,6 +24,8 @@ func _ready() -> void:
 	ok = ok and test_low_rep_blocks_docking()
 	ok = ok and test_war_triggers_at_low_relation()
 	ok = ok and test_war_blocks_enemy_flag()
+	ok = ok and test_war_tariff_doubles_for_foreign_trader()
+	ok = ok and test_war_tariff_exempts_own_citizen()
 	ok = ok and test_peace_resets_relations()
 	ok = ok and test_pirate_attack_lowers_pirate_rep()
 	print("\n=== %s ===" % ("ALL STAGE-A3 TESTS PASSED" if ok else "SOME STAGE-A3 TESTS FAILED"))
@@ -186,6 +190,65 @@ func test_war_blocks_enemy_flag() -> bool:
 	_report("war_blocks_enemy_flag", passed,
 		"england-ship→spain-port=%s (expect false), →england-port=%s (expect true), spain-ship→spain-port=%s (expect true)" %
 		[can_dock_enemy, can_dock_friendly, can_dock_self])
+	return passed
+
+func test_war_tariff_doubles_for_foreign_trader() -> bool:
+	WorldState.build_world()
+	# Inject war france<->england so france is a wartime state.
+	var w := WarSystem.ActiveWar.new()
+	w.state_a = "france"
+	w.state_b = "england"
+	w.days_left = -1
+	WorldState.active_wars.append(w)
+	var ship: Ship = WorldState.get_player_ship()
+	ship.flag_state = "netherlands"   # neutral flag, foreign to france
+	ship.cargo.clear()
+	ship.cargo_used = 0.0
+	var company: Company = WorldState.get_company(ship.owner_id)
+	company.money = 5000.0
+	var town: Town = WorldState.get_town("tortuga")   # france port, at war
+	ship.current_town_id = "tortuga"
+	var state: State = WorldState.get_state("france")
+	var treasury_before: float = state.treasury
+	var trade := TradeSystem.new(MarketSystem.new())
+	var res: Dictionary = trade.manual_buy(ship, company, town, "sugar", 10.0)
+	var cost: float = float(res["cost"])
+	# france base 5%, player rep 0 (mult 1.0), wartime foreign trader -> x2 -> 10%.
+	var expected_tax: float = cost * 0.05 * 2.0
+	var actual_tax: float = state.treasury - treasury_before
+	var passed: bool = abs(actual_tax - expected_tax) < 0.5
+	_report("war_tariff_doubles_for_foreign_trader", passed,
+		"war fra<->eng, flag=nl in tortuga(fra): cost=%.1f expected_tax=%.2f actual_tax=%.2f (x2)" %
+		[cost, expected_tax, actual_tax])
+	return passed
+
+func test_war_tariff_exempts_own_citizen() -> bool:
+	WorldState.build_world()
+	var w := WarSystem.ActiveWar.new()
+	w.state_a = "france"
+	w.state_b = "england"
+	w.days_left = -1
+	WorldState.active_wars.append(w)
+	var ship: Ship = WorldState.get_player_ship()
+	ship.flag_state = "france"   # citizen of the warring state -> exempt
+	ship.cargo.clear()
+	ship.cargo_used = 0.0
+	var company: Company = WorldState.get_company(ship.owner_id)
+	company.money = 5000.0
+	var town: Town = WorldState.get_town("tortuga")
+	ship.current_town_id = "tortuga"
+	var state: State = WorldState.get_state("france")
+	var treasury_before: float = state.treasury
+	var trade := TradeSystem.new(MarketSystem.new())
+	var res: Dictionary = trade.manual_buy(ship, company, town, "sugar", 10.0)
+	var cost: float = float(res["cost"])
+	# france base 5%, citizen (flag == port) -> no war surcharge -> 5%.
+	var expected_tax: float = cost * 0.05 * 1.0
+	var actual_tax: float = state.treasury - treasury_before
+	var passed: bool = abs(actual_tax - expected_tax) < 0.5
+	_report("war_tariff_exempts_own_citizen", passed,
+		"war fra<->eng, flag=fra in tortuga(fra): cost=%.1f expected_tax=%.2f actual_tax=%.2f (x1, citizen)" %
+		[cost, expected_tax, actual_tax])
 	return passed
 
 func test_peace_resets_relations() -> bool:

@@ -22,18 +22,26 @@ func _init(p_market: MarketSystem) -> void:
 # Money flow: company.money -> state.treasury. state.treasury is in
 # WorldState.total_money() so the conservation invariant holds.
 #
-# Stage A3: tax now SCALES with player_rep — at rep=0 base rate, at
+# tax now SCALES with player_rep — at rep=0 base rate, at
 # rep=-100 doubled (hostile trader pays double duty), at rep>=0 unchanged
-# (no bonus below base). And trading raises player_rep with the port's
-# state (+0.5/trade) and with pirates (+1 if town is a pirate haven).
-# AI companies do not earn rep — only the player does.
-func _collect_customs(town: Town, trade_value: float, company: Company) -> float:
+# (no bonus below base). War tariff: a foreign trader (flag != port's
+# state) in a wartime port pays double again (state_at_war) — own citizens
+# (flag == port) are exempt, and enemy flags can't dock here at all
+# (ShipsTick._can_dock blocks at_war(flag, port)). Trading also raises
+# player_rep with the port's state (+0.5/trade) and with pirates (+1 if
+# town is a pirate haven). AI companies do not earn rep — only the player.
+func _collect_customs(town: Town, trade_value: float, company: Company, flag_state: String = "") -> float:
 	var st: State = WorldState.get_state(town.state_id)
 	if st == null or st.tax_rate <= 0.0 or trade_value <= 0.0:
 		return 0.0
 	# Stage A3: scale tax by player reputation (only for the player).
 	var rep: float = WorldState.get_player_rep(st.id) if company != null and not company.is_ai else 0.0
 	var tax_mult: float = 1.0 + max(0.0, -rep / 100.0)   # 1.0 at rep>=0, 2.0 at rep=-100
+	# War tariff: foreign trader (flag != port) in a wartime port pays 2x.
+	# Citizens (flag == port) pay normal; enemy flags never reach a trade
+	# (_can_dock blocks them first). Money still routes to state.treasury.
+	if flag_state != "" and flag_state != town.state_id and WorldState.state_at_war(town.state_id):
+		tax_mult *= 2.0
 	var tax: float = trade_value * st.tax_rate * tax_mult
 	st.treasury += tax
 	# Stage A3: trading builds player reputation. +0.5 with the port's state,
@@ -73,7 +81,7 @@ func execute_buy(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	var cost: float = float(res["cost"])
 	company.money -= cost
 	town.market.fund += cost
-	var tax: float = _collect_customs(town, cost, company)   # Stage A2+A3
+	var tax: float = _collect_customs(town, cost, company, ship.flag_state)   # Stage A2+A3
 	company.money -= tax
 	ship.add_cargo(rule.good_id, actual)
 	ship.last_buy_cost = cost
@@ -108,7 +116,7 @@ func execute_sell(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	ship.remove_cargo(rule.good_id, actual)
 	town.market.fund -= revenue
 	company.money += revenue
-	var tax: float = _collect_customs(town, revenue, company)   # Stage A2+A3
+	var tax: float = _collect_customs(town, revenue, company, ship.flag_state)   # Stage A2+A3
 	company.money -= tax
 	ship.last_sell_revenue = revenue
 	ship.lifetime_sell_revenue += revenue
@@ -160,7 +168,7 @@ func manual_buy(ship: Ship, company: Company, town: Town, good_id: String, qty: 
 		return {"qty": 0.0, "cost": 0.0, "price": price}
 	company.money -= cost
 	town.market.fund += cost
-	var tax: float = _collect_customs(town, cost, company)   # Stage A2+A3
+	var tax: float = _collect_customs(town, cost, company, ship.flag_state)   # Stage A2+A3
 	company.money -= tax
 	ship.add_cargo(good_id, actual)
 	ship.last_buy_cost = cost
@@ -187,7 +195,7 @@ func manual_sell(ship: Ship, company: Company, town: Town, good_id: String, qty:
 	ship.remove_cargo(good_id, actual)
 	town.market.fund -= revenue
 	company.money += revenue
-	var tax: float = _collect_customs(town, revenue, company)   # Stage A2+A3
+	var tax: float = _collect_customs(town, revenue, company, ship.flag_state)   # Stage A2+A3
 	company.money -= tax
 	ship.last_sell_revenue = revenue
 	ship.lifetime_sell_revenue += revenue

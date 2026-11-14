@@ -616,7 +616,10 @@ player agency: bribes (cost scales с negative rep, 4-week
   flag_state, -10 rep с другими states). Новая Diplomacy panel в UI
   (4 строки state+rep+Bribe+Citizenship). Окно расширено 1280×720 → 1440×900,
   правая панель 560 → 640. 6 новых тестов.
+war tariffs: foreign trader (flag≠port) в wartime-порту платит 2× customs
+  (`state_at_war`, новый helper); citizen (flag==port) exempt; вражеский флаг
+  не дойдёт до торговли (`_can_dock` блок). +2 теста в test_wars (10 всего).
 
-Все 42 теста зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700,
+Все 44 теста зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700,
 15 городов на карте, 4 государства с дипломатией + player agency (bribe +
 citizenship), окно 1440×900.

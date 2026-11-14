@@ -275,6 +275,18 @@ func at_war(a: String, b: String) -> bool:
 			return true
 	return false
 
+# is this state in ANY active war? Used by TradeSystem._collect_customs
+# for the war tariff (a foreign trader in a wartime port pays double customs).
+# Bilateral at_war above answers a specific pair; this answers "is the port's
+# state at war at all". Same active_wars list, no rng, no money.
+func state_at_war(id: String) -> bool:
+	if id == "":
+		return false
+	for w in active_wars:
+		if w.state_a == id or w.state_b == id:
+			return true
+	return false
+
 # The player's ship — the one owned by the "player" company. Falls back to
 # ships[0] only if no player-owned ship exists (defensive; build_world always
 # creates one). Use this instead of indexing ships[0] directly so AI ships
