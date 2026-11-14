@@ -755,7 +755,7 @@ drift=0; не читают rng → детерминизм. Новое поле `
 conservation+rep+cooldown, cooldown-block, no-funds-block, citizenship
 flag+conservation, low-rep-block, citizenship penalizes bystander states (-10).
 
-Всего теперь **44 теста** (5+2+5+4+4+4+4+10+6), все зелёные, drift=0.0000 на
+Всего теперь **45 тестов** (5+2+5+4+4+4+4+11+6), все зелёные, drift=0.0000 на
 365-day sim, 5 wars + 5 peaces + 61 incidents за год.
 
 ### War tariffs — wartime customs surcharge on foreign traders
@@ -785,6 +785,34 @@ Havana Sugar −216, Santiago Metals −207, Carib Produce 0 → ~−423 total
 (~1.4% AI-прибыли) ушло в state treasuries. **Вывод: tariff НЕ избыточен** —
 мягкий; для игрока в этом seed no-op, реальные проблемы только при торговле в
 нейтральном иностранном порту во время войны этого state.
+
+### Relations matrix UI — state↔state relations + active wars in Diplomacy
+
+**Механика.** В `_rebuild_diplo_panel` (ui/game_ui.gd) ниже per-state строк
+(bribe/citizenship) добавлен read-only block: separator + "— state relations —"
++ строка active wars ("⚔ Испания ↔ Англия, ..." или "(no active wars)") + по
+строке на каждую пару state (C(N,2)=6), color-coded: red+⚔ at war, orange
+rel≤−40, yellow rel<0, green rel≥0. Глифы ⚔/↔/★ проверены в DejaVuSansMono.
+
+**Refresh.** `_on_day_advanced` теперь зовёт `_rebuild_diplo_panel` на weekly
+границе (`day % 7 == 0`) — выровнено с `WarSystem.roll_weekly` (wars/relations
+меняются только там), без ежедневного reflow кнопок. Rebuild также на dock и
+после bribe/citizenship (как раньше).
+
+**Зачем:** wars блокируют docking вражеского флага + 2× customs для иностранцев
+(tariff) — видеть, кто с кем воюет, делает route planning + citizenship
+тактически осмысленными. Раньше в UI был только player_rep per state.
+
+**Тест (1 новый в test_wars, 11/11):** `relations_matrix_contract` — каждый pair
+имеет relation ∈ [−100,100], get_relation симметричен, `state_at_war(id)` true
+iff id в каком-то active war, `at_war(a,b)` bilateral согласован с active_wars.
+
+**Верификация UI:** модель не читает images, поэтому visual-check сделан
+программно — рендер под Xvfb+llvmpipe (project `gl_compatibility`), color-bucket
+анализ правой панели: orange (sp:nl=−40 pair) 695px, yellow (sp:en/sp:fr pairs)
+1080px, green (rep≥0 rows + green pairs) 5381px, gray-green "(no active wars)"
+6396px, red 0 (войн нет в свежем мире). 8s clean run без runtime-ошибок.
+drift=0, editor-pass чист, 9/9 сцен PASS.
 
 ---
 

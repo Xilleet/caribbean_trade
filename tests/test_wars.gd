@@ -14,6 +14,9 @@ extends Node
 ##  - war blocks docking for ships flying the enemy flag
 ##  - war tariff: foreign trader in a wartime port pays 2x customs
 ##  - war tariff: own citizen (flag == port) is exempt even during war
+##  - relations matrix data contract: every pair has a relation in [-100,100];
+##    get_relation symmetric; state_at_war matches active_wars membership;
+##    at_war bilateral agrees with the active_wars list
 ##  - peace resets relations to -20
 
 func _ready() -> void:
@@ -26,6 +29,7 @@ func _ready() -> void:
 	ok = ok and test_war_blocks_enemy_flag()
 	ok = ok and test_war_tariff_doubles_for_foreign_trader()
 	ok = ok and test_war_tariff_exempts_own_citizen()
+	ok = ok and test_relations_matrix_contract()
 	ok = ok and test_peace_resets_relations()
 	ok = ok and test_pirate_attack_lowers_pirate_rep()
 	print("\n=== %s ===" % ("ALL STAGE-A3 TESTS PASSED" if ok else "SOME STAGE-A3 TESTS FAILED"))
@@ -249,6 +253,52 @@ func test_war_tariff_exempts_own_citizen() -> bool:
 	_report("war_tariff_exempts_own_citizen", passed,
 		"war fra<->eng, flag=fra in tortuga(fra): cost=%.1f expected_tax=%.2f actual_tax=%.2f (x1, citizen)" %
 		[cost, expected_tax, actual_tax])
+	return passed
+
+# The Diplomacy UI panel renders a state↔state relations matrix +
+# active-wars summary. This locks the data contract that panel consumes: every
+# state pair has a relation in [-100,100], get_relation is symmetric, and the
+# war helpers are mutually consistent (state_at_war(id) true iff id appears in
+# some active war; at_war(a,b) true iff the pair is in active_wars).
+func test_relations_matrix_contract() -> bool:
+	WorldState.build_world()
+	var arr: Array = WorldState.states
+	# Fresh world: every pair has a bounded, symmetric relation; no wars.
+	var pairs_ok: bool = true
+	for i in arr.size():
+		for j in range(i + 1, arr.size()):
+			var a: String = arr[i].id
+			var b: String = arr[j].id
+			var r: float = WorldState.get_relation(a, b)
+			if r < -100.0 or r > 100.0:
+				pairs_ok = false
+			if WorldState.get_relation(a, b) != WorldState.get_relation(b, a):
+				pairs_ok = false
+			if WorldState.at_war(a, b):
+				pairs_ok = false   # no wars in a fresh world
+	var no_war: bool = true
+	for s in arr:
+		if WorldState.state_at_war(s.id):
+			no_war = false
+	# Inject one war france<->england: only those two states are at war.
+	var w := WarSystem.ActiveWar.new()
+	w.state_a = "france"
+	w.state_b = "england"
+	w.days_left = -1
+	WorldState.active_wars.append(w)
+	var only_two: bool = true
+	for s in arr:
+		var expect: bool = s.id == "france" or s.id == "england"
+		if WorldState.state_at_war(s.id) != expect:
+			only_two = false
+	# Bilateral at_war must agree with active_wars membership.
+	var bilat_ok: bool = WorldState.at_war("france", "england") \
+		and not WorldState.at_war("france", "spain") \
+		and not WorldState.at_war("england", "netherlands")
+	var passed: bool = pairs_ok and no_war and only_two and bilat_ok
+	_report("relations_matrix_contract", passed,
+		"pairs_ok=%s no_war_fresh=%s only_two_at_war=%s bilat_ok=%s" %
+		[pairs_ok, no_war, only_two, bilat_ok])
 	return passed
 
 func test_peace_resets_relations() -> bool:

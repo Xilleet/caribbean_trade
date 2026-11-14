@@ -619,7 +619,11 @@ player agency: bribes (cost scales с negative rep, 4-week
 war tariffs: foreign trader (flag≠port) в wartime-порту платит 2× customs
   (`state_at_war`, новый helper); citizen (flag==port) exempt; вражеский флаг
   не дойдёт до торговли (`_can_dock` блок). +2 теста в test_wars (10 всего).
+relations matrix UI: в Diplomacy panel добавлен read-only block — active wars
+  строка + 6 state↔state pair rows color-coded (red⚔/orange≤−40/yellow<0/
+  green≥0); weekly refresh (`day%7==0`, выровнен с `WarSystem.roll_weekly`).
+  +1 тест (`relations_matrix_contract`, test_wars 11 всего).
 
-Все 44 теста зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700,
+Все 45 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700,
 15 городов на карте, 4 государства с дипломатией + player agency (bribe +
 citizenship), окно 1440×900.

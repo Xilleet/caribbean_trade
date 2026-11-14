@@ -207,6 +207,12 @@ func _on_day_advanced(_day: int) -> void:
 	_render_ship()
 	_render_town()
 	_rebuild_trade_panel()
+	# Refresh the diplomacy panel (state-pair relations + active
+	# wars + per-state rep) on the weekly boundary — wars/relations only change
+	# in WarSystem.roll_weekly, which fires when the week advances, so a weekly
+	# rebuild stays in sync without daily reflow of the button rows.
+	if _day % 7 == 0:
+		_rebuild_diplo_panel()
 
 func _on_town_updated(town_id: String) -> void:
 	if town_id == _selected_town:
@@ -434,6 +440,9 @@ func _rebuild_route_panel() -> void:
 # (needs rep>50 + $5000, switches the ship's flag_state). All mutations are
 # delegated to the Main controller (bribe_state / apply_citizenship); the panel
 # only reads state to set its own disable flags and button labels.
+# Below the per-state rows, a read-only state↔state relations
+# matrix + active-wars summary (who is at war with whom) — refreshed weekly
+# by _on_day_advanced (cadence matches WarSystem.roll_weekly).
 func _rebuild_diplo_panel() -> void:
 	_clear(_diplo_panel)
 	var company: Company = WorldState.get_company("player")
@@ -460,6 +469,47 @@ func _rebuild_diplo_panel() -> void:
 		var cit_btn := _mkbutton(row, "Citizenship", Callable(self, "_on_citizenship").bind(s.id),
 			90.0, 20.0, 11, Color(0.55, 0.75, 0.95))
 		cit_btn.disabled = rep <= 50.0 or company.money < 5000.0 or s.id == flag_now
+	# --- State↔state relations matrix + active wars ---
+	# Read-only view of who is at war with whom (the per-state rows above show
+	# the player's own standing). Wars block enemy-flag docking (ShipsTick) and
+	# double customs for foreign traders (TradeSystem war tariff), so seeing
+	# them here is what makes route planning + citizenship tactical.
+	_diplo_panel.add_child(_sep())
+	_mklabel(_diplo_panel, "— state relations —", 12, Color(0.7, 0.75, 0.7))
+	# Active wars summary line (or "(no active wars)" in peacetime).
+	var war_parts: PackedStringArray = PackedStringArray()
+	for w in WorldState.active_wars:
+		var sa: State = WorldState.get_state(w.state_a)
+		var sb: State = WorldState.get_state(w.state_b)
+		var na: String = sa.name if sa != null else w.state_a
+		var nb: String = sb.name if sb != null else w.state_b
+		war_parts.append("%s ↔ %s" % [na, nb])
+	var war_txt: String = ("⚔ " + ", ".join(war_parts)) if war_parts.size() > 0 else "(no active wars)"
+	var war_col: Color = Color(0.95, 0.4, 0.4) if war_parts.size() > 0 else Color(0.5, 0.6, 0.5)
+	_mklabel(_diplo_panel, war_txt, 11, war_col)
+	# One row per state pair (C(N,2), deterministic order): relation value
+	# colored by warmth — red+⚔ at war, orange <= -40, yellow < 0, green >= 0.
+	var sarr: Array = WorldState.states
+	for i in sarr.size():
+		for j in range(i + 1, sarr.size()):
+			var a: State = sarr[i]
+			var b: State = sarr[j]
+			var rel: float = WorldState.get_relation(a.id, b.id)
+			var aw: bool = WorldState.at_war(a.id, b.id)
+			var rrow := HBoxContainer.new()
+			rrow.add_theme_constant_override("separation", 4)
+			_diplo_panel.add_child(rrow)
+			var mark: String = "⚔" if aw else "  "
+			var rc: Color
+			if aw:
+				rc = Color(0.95, 0.35, 0.35)
+			elif rel <= -40.0:
+				rc = Color(0.95, 0.6, 0.3)
+			elif rel < 0.0:
+				rc = Color(0.95, 0.85, 0.4)
+			else:
+				rc = Color(0.5, 0.85, 0.5)
+			_mklabel(rrow, "%s %-11s ↔ %-11s %+5.0f" % [mark, a.name, b.name, rel], 11, rc)
 
 func _on_bribe(state_id: String) -> void:
 	_controller.call("bribe_state", state_id)
