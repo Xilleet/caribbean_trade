@@ -45,14 +45,19 @@ func test_manual_buy_moves_money_and_stock() -> bool:
 	var total_before: float = WorldState.total_money()
 	var res: Dictionary = trade.manual_buy(ship, company, town, "sugar", 10.0)
 	var price: float = float(res["price"])
+	# Stage A2: customs tax now deducted from company.money after cost.
+	# cost = 10 * avg_price; tax = cost * state.tax_rate. gibara is spain (0.05).
+	var st: State = WorldState.get_state(town.state_id)
+	var tax_rate: float = st.tax_rate if st != null else 0.0
+	var expected_money: float = money_before - 10.0 * price * (1.0 + tax_rate)
 	var passed: bool = abs(float(res["qty"]) - 10.0) < 0.001 \
-		and abs(company.money - (money_before - 10.0 * price)) < 0.01 \
+		and abs(company.money - expected_money) < 0.05 \
 		and abs(town.market.get_entry("sugar").stock - (stock_before - 10.0)) < 0.001 \
 		and abs(ship.cargo_qty("sugar") - 10.0) < 0.001 \
 		and abs(WorldState.total_money() - total_before) < 0.01
 	_report("manual_buy_moves_money_and_stock", passed,
-			"qty=%.2f money=%.1f->%.1f stock=%.1f->%.1f hold=%.1f drift=%.4f" %
-			[float(res["qty"]), money_before, company.money, stock_before,
+			"qty=%.2f money=%.1f->%.1f (expect %.1f) stock=%.1f->%.1f hold=%.1f drift=%.4f" %
+			[float(res["qty"]), money_before, company.money, expected_money, stock_before,
 			 town.market.get_entry("sugar").stock, ship.cargo_qty("sugar"),
 			 WorldState.total_money() - total_before])
 	return passed
@@ -117,15 +122,21 @@ func test_roundtrip_conserves_money() -> bool:
 	var town: Town = ctx["town"]
 	var money_before: float = company.money
 	var total_before: float = WorldState.total_money()
+	# Stage A2: roundtrip loses 2*cost*tax_rate to state treasury (customs on
+	# both buy and sell legs). Total_money conserved; company.money drops.
+	var st: State = WorldState.get_state(town.state_id)
+	var state_t_before: float = st.treasury if st != null else 0.0
 	var trade := TradeSystem.new(MarketSystem.new())
 	trade.manual_buy(ship, company, town, "sugar", 10.0)
 	trade.manual_sell(ship, company, town, "sugar", 10.0)
-	var passed: bool = abs(company.money - money_before) < 0.01 \
+	var tax_paid: float = (st.treasury if st != null else 0.0) - state_t_before
+	var passed: bool = abs((company.money + tax_paid) - money_before) < 0.01 \
 		and ship.cargo_qty("sugar") < 0.001 \
-		and abs(WorldState.total_money() - total_before) < 0.01
+		and abs(WorldState.total_money() - total_before) < 0.01 \
+		and tax_paid > 0.0   # customs actually collected
 	_report("roundtrip_conserves_money", passed,
-			"money=%.1f->%.1f hold=%.1f drift=%.4f" %
-			[money_before, company.money, ship.cargo_qty("sugar"),
+			"money=%.1f->%.1f tax_paid=%.2f hold=%.1f drift=%.4f" %
+			[money_before, company.money, tax_paid, ship.cargo_qty("sugar"),
 			 WorldState.total_money() - total_before])
 	return passed
 

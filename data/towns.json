@@ -1,42 +1,141 @@
 {
   "cayman": {
     "name": "Cayman",
-    "coords": [120, 380],
-    "population": {"poor": 400, "middle": 100, "rich": 20},
+    "coords": [
+      120,
+      380
+    ],
+    "population": {
+      "poor": 400,
+      "middle": 100,
+      "rich": 20
+    },
     "population_money": 8000,
-    "industries": ["lumber_camp", "orchard", "corn_farm", "bakery"],
-    "initial_stock": {"wood": 60, "fruits": 40, "corn": 30, "bread": 25, "metal": 10, "textiles": 8}
+    "industries": [
+      "lumber_camp",
+      "orchard",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "wood": 60,
+      "fruits": 40,
+      "corn": 30,
+      "bread": 25,
+      "metal": 10,
+      "textiles": 8
+    },
+    "state": "england"
   },
   "port_royal": {
     "name": "Port Royal",
-    "coords": [300, 320],
-    "population": {"poor": 1000, "middle": 300, "rich": 80},
+    "coords": [
+      300,
+      320
+    ],
+    "population": {
+      "poor": 1000,
+      "middle": 300,
+      "rich": 80
+    },
     "population_money": 40000,
-    "industries": ["smithy", "textile_mill", "corn_farm", "bakery"],
-    "initial_stock": {"metal": 50, "textiles": 30, "corn": 40, "bread": 40, "sugar": 20, "tobacco": 15}
+    "industries": [
+      "smithy",
+      "textile_mill",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "metal": 50,
+      "textiles": 30,
+      "corn": 40,
+      "bread": 40,
+      "sugar": 20,
+      "tobacco": 15
+    },
+    "state": "england"
   },
   "gibara": {
     "name": "Gibara",
-    "coords": [460, 250],
-    "population": {"poor": 450, "middle": 120, "rich": 25},
+    "coords": [
+      460,
+      250
+    ],
+    "population": {
+      "poor": 450,
+      "middle": 120,
+      "rich": 25
+    },
     "population_money": 14000,
-    "industries": ["sugar_plantation", "tobacco_plantation", "distillery", "corn_farm", "bakery"],
-    "initial_stock": {"sugar": 50, "tobacco": 30, "rum": 20, "corn": 25, "bread": 15}
+    "industries": [
+      "sugar_plantation",
+      "tobacco_plantation",
+      "distillery",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "sugar": 50,
+      "tobacco": 30,
+      "rum": 20,
+      "corn": 25,
+      "bread": 15
+    },
+    "state": "spain"
   },
   "santiago": {
     "name": "Santiago",
-    "coords": [520, 360],
-    "population": {"poor": 700, "middle": 200, "rich": 40},
+    "coords": [
+      520,
+      360
+    ],
+    "population": {
+      "poor": 700,
+      "middle": 200,
+      "rich": 40
+    },
     "population_money": 24000,
-    "industries": ["mine", "corn_farm", "smithy", "bakery"],
-    "initial_stock": {"metal": 60, "corn": 50, "metal_goods": 18, "bread": 20, "wood": 15}
+    "industries": [
+      "mine",
+      "corn_farm",
+      "smithy",
+      "bakery"
+    ],
+    "initial_stock": {
+      "metal": 60,
+      "corn": 50,
+      "metal_goods": 18,
+      "bread": 20,
+      "wood": 15
+    },
+    "state": "spain"
   },
   "tortuga": {
     "name": "Tortuga",
-    "coords": [200, 180],
-    "population": {"poor": 350, "middle": 90, "rich": 15},
+    "coords": [
+      200,
+      180
+    ],
+    "population": {
+      "poor": 350,
+      "middle": 90,
+      "rich": 15
+    },
     "population_money": 9000,
-    "industries": ["hemp_farm", "distillery", "lumber_camp", "corn_farm", "bakery"],
-    "initial_stock": {"hemp": 40, "rum": 18, "wood": 35, "sugar": 15, "bread": 12}
+    "industries": [
+      "hemp_farm",
+      "distillery",
+      "lumber_camp",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "hemp": 40,
+      "rum": 18,
+      "wood": 35,
+      "sugar": 15,
+      "bread": 12
+    },
+    "state": "france"
   }
 }

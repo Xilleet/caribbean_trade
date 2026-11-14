@@ -20,6 +20,10 @@ var current_town_id: String = ""
 var state: String = "idle"        # idle | sailing | docked
 var upkeep_daily: float = 8.0
 var route_id: String = ""
+# Stage A1: defensive armament. 0 = merchant (full pirate risk), 1 = light
+# escort (risk halved), 2 = warship (risk quartered). Pirate roll in
+# ShipsTick uses effective_prob = base_prob / (1 + armed).
+var armed: int = 0
 # Stage 4: when true the ship auto-trades its route and departs on its own
 # (headless verification, future AI ships). When false the ship only docks and
 # waits — the player manually buys/sells and clicks "Отплыть" to depart.

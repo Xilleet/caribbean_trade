@@ -1,0 +1,9 @@
+{
+  "pirate_attack": {
+    "name": "Пиратское нападение",
+    "prob_per_sailing_day": 0.04,
+    "cargo_loss_pct": 0.20,
+    "extra_upkeep_mult": 0.5,
+    "haven_towns": ["tortuga"]
+  }
+}

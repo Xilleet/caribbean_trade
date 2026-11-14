@@ -806,5 +806,187 @@ arbitrage ограничен tranched slippage, famine в разумных пр�
 от пользователя. Это уже не data-only правка, а итеративная настройка с
 feedback loop'ом. Кандидат на 7.3+, когда будут данные.
 
+---
+
+## 17. Этап A1+A2 — Пираты и Государства (первый срез автономного мира)
+
+После баланса 7.0–7.2 переходим к наполнению мира (README §3.3, §3.4, §7):
+**государства как автономные экономические агенты** и **пиратские нападения
+как риск для торговых кораблей**. Это первый срез, где мир перестаёт быть
+нейтральной ареной — у портов появляется собственник, у торговли появляется
+налог, у моря появляется риск.
+
+Исторические ориентиры (~1600 Карибский бассейн, README §1.1 sources):
+
+- **Испания** владеет Кубой (Гибара, Сантьяго) — основная колониальная держава
+  века, тяжёлая налоговая администрация (tax_rate 0.05).
+- **Англия** владеет Ямайкой (Порт-Рояль, Кайман) — Порт-Рояль историческая
+  база буканьеров и каперов, умеренный налог (0.04).
+- **Франция** владеет Тортугой — пиратская столица Карибского моря, формальная
+  французская колония с 1629 (tax_rate 0.05).
+- **Нидерланды** — в нашем прототипе пока не имеют городов (reserving для
+  будущего расширения карты, A2 → D1), но государство уже заспавнено с
+  treasury 30k и tax_rate 0.03 (исторически голландская торговля была
+  наименее облагаемой, что отражает их mercantile конкурентность).
+
+Игровые ориентиры:
+
+- **Port Royale 2** — каждая нация имеет свои порты; войны закрывают порты для
+  чужих кораблей (A3 — следующий срез).
+- **Distant Worlds** — государства как автономные агенты с бюджетом, налогами,
+  дипломатией.
+- **Victoria 3** — налоги как рычаг государства, аккумулирующийся в budget.
+
+### 17.1. A2 — Государства и таможенные пошлины
+
+**Сущность `State`** (`entities/state.gd`, новый): `id`, `name`, `treasury`,
+`tax_rate`. Заспавнена из `data/states.json` (4 державы, см. выше) в
+`WorldState.build_world()`. Treasury стартует от `starting_treasury` (50k/40k/
+35k/30k = 155k суммарно — поэтому `total_money()` на старте теперь 299 100
+вместо 144 100).
+
+**`Town.state_id`** (новое поле в `entities/town.gd`): устанавливается при
+постройке города из `data/towns.json["state"]`. Все 5 городов размечены
+исторически (см. таблицу выше).
+
+**`WorldState.total_money()`** теперь включает `for st in states: s += st.treasury`
+— без этого консервация денег ломалась бы при первом налоге. С этим —
+сохраняется.
+
+**Таможенный сбор** в `TradeSystem._collect_customs(town, trade_value) -> float`:
+
+- Buy: `tax = cost × state.tax_rate`; `state.treasury += tax`;
+  `company.money -= tax`. Деньги: company → state.treasury.
+- Sell: `tax = revenue × state.tax_rate`; `state.treasury += tax`;
+  `company.money -= tax` (т.е. продавец получает `revenue - tax`). Деньги:
+  market.fund платит полную revenue продавцу, продавец отдаёт tax государству.
+
+Вызывается из `execute_buy`, `execute_sell`, `manual_buy`, `manual_sell`. **Не
+применяется к внутренним сделкам города** (consumption_system — население
+покупает хлеб, production_system — предприятия закупают сырьё) — налог только
+на **межгородскую** торговлю через корабли, что и есть историческая таможенная
+пошлина (customs duty на импорт/экспорт).
+
+**`effective_money` fix** в `execute_buy`/`manual_buy`: вместо
+`company.money` в `MarketSystem.buy` передаётся `company.money / (1 + tax_rate)`.
+Без этого ship мог выкачать весь кошелёк на cost, а затем tax уходил в
+отрицательный баланс. С фиксом — buy заранее резервирует долю под tax.
+
+### 17.2. A1 — Пиратские нападения
+
+**`data/pirates.json`** (новый) описывает архетип `pirate_attack`:
+`prob_per_sailing_day = 0.04` (4% шанс в каждый день моря),
+`cargo_loss_pct = 0.20` (теряем 20% случайного груза), `extra_upkeep_mult = 0.5`
+(доп-upkeep на ремонт = половина дневного upkeep), `haven_towns = ["tortuga"]`
+(потом для географии риска).
+
+**`Ship.armed: int`** (новое поле, 0..2): 0 = merchant (полный риск),
+1 = light escort (риск × 0.5), 2 = warship (риск × 0.33). Существующие
+sloop/brigantine/fluyt — все merchant (`armed=0`). В будущем (D3) frigate
+получит `armed=2` и станет ходить по опасным маршрутам без страха.
+
+**Roll в `ShipsTick._roll_pirate_attack`**: только когда `ship.state ==
+"sailing"` (корабль в море, не под защитой порта). Использует **отдельный rng
+stream `WorldState.pirate_rng`** (сидится от `world_seed + 91137`) —
+**критично для детерминизма**: если использовать `event_rng`, последовательность
+бросков для drought/storm/famine сдвинулась бы и сломала тесты 7.0/7.1/7.2.
+
+**Эффект нападения**:
+- lose `cargo_loss_pct` случайного груза (real loss, allowed by Concept §13:
+  «Товар не исчезает без потребления, потерь или экспорта»). Если корабль
+  пуст — груз не теряется, только ремонт.
+- extra upkeep = `extra_upkeep_mult × ship.upkeep_daily`, routed
+  `company.money → local_town.population_money` (тот же путь, что у storm).
+- emit message: «Пираты атаковали {ship_id}: -N {good}, ремонт M».
+
+**Консервация денег**: только repair-upkeep двигает деньги. Cargo loss — это
+потеря товаров (нет инварианта товаров, только денег). `total_money()`
+остаётся неизменным.
+
+### 17.3. Тесты (4+4 новых, всего теперь 28)
+
+`tests/test_states.gd` + `.tscn` (4 PASS):
+- `states_spawn` — 4 государства, у каждого города state_id, историческая
+  принадлежность проверена (tortuga=france, port_royal=england, santiago=spain),
+  treasury_sum=155000.
+- `buy_tax_flows_to_state` — manual_buy в tortuga (france 5%): tax = cost × 0.05
+  → state.treasury, drift=0.
+- `sell_tax_flows_to_state` — manual_sell rum в port_royal (england 4%):
+  tax = revenue × 0.04 → state.treasury, drift=0.
+- `tax_conserved_30d` — полная sim 30 дней: drift=0, state treasuries выросли.
+
+`tests/test_pirates.gd` + `.tscn` (4 PASS):
+- `pirate_attacks_deterministic` — два прогона 60 дней: одинаковые
+  lifetime_buy/sell у игрока (детерминизм pirate_rng).
+- `pirate_attack_loses_cargo` — prob=1.0, ship с 20 sugar → потеряно >0.
+- `pirate_attack_costs_upkeep` — prob=1.0, company.money падает на
+  upkeep + repair (16 + 8 = 24), drift=0.
+- `pirate_conserved_60d` — sim 60 дней с дефолтным prob=0.04: drift=0.
+
+Существующие 20 тестов обновлены под новый мир:
+- `test_manual_trade::test_manual_buy_moves_money_and_stock` — assertion
+  обновлено: `company.money = money_before - cost × (1 + tax_rate)`.
+- `test_manual_trade::test_roundtrip_conserves_money` — roundtrip теперь теряет
+  `2 × cost × tax_rate` на customs (buy + sell legs), assert: `company.money +
+  tax_paid == money_before`.
+- Остальные 18 без изменений — они либо structural (AI spawn, determinism,
+  drift=0), либо используют tranched-pricing инварианты без привязки к
+  конкретным числам стоимости.
+
+### 17.4. Эффект на sim (365 дней, seed = 1337)
+
+| Метрика              | 7.2     | A1+A2   |
+|---|---|---|
+| `total_money` start  | 144 100 | 299 100 (+155k state treasuries) |
+| drift                | 0.0000  | 0.0000  |
+| Player profit        | +15 728 | +12 782 (−19%, customs + pirate losses) |
+| Havana Sugar P/L     | +15 766 | +12 517 |
+| Santiago Metals P/L  | +10 764 | +6 277  |
+| Carib Produce P/L    | +8 272  | +11 816 (+43%, route uses cayman fruits, low-tax england ports) |
+| Events fired         | 113     | 113 (пираты считаются отдельно, не в этом счётчике) |
+
+Прибыль игрока упала на ~19% — это сумма таможенных пошлин (5% от
+каждой сделки в испанских/французских портах) и пиратских потерь (4%
+chance/день моря × ~30 дней/год = ~1.2 атаки × ~20% груза + ремонт).
+Carib Produce единственная выросла — её маршрут (cayman→port_royal→gibara)
+проходит через английские порты с низким tax_rate 0.04, а фрукты в Каймане
+в избытке (цена на дне, налог маленький в абсолютных числах).
+
+### 17.5. Что НЕ тронуто в этом срезе
+
+- **Войны и блокады** (A3) — следующий срез. State.treasury пока только
+  накапливается; в A3 государства начнут тратить его на war fleets, port
+  subsidies, или экспроприацию (событийно-скриптовая механика поверх Stage 6).
+- **State budgets как активный рычаг** (A4) — налоги пока фиксированы в
+  states.json. Динамическое изменение tax_rate в ответ на treasury
+  balance/war — позже.
+- **География пиратского риска** — пока ALL sailing ships have base prob=0.04.
+  Pirate haven (tortuga) есть в данных, но зона риска не рассчитывается.
+  В A1.1 добавим радиус от haven → повышенный риск.
+- **Armed ships** (D3) — поле `armed` есть, но в ships.json все 0. Когда
+  добавим frigate (D3), вооружённые корабли получат реальный defensive bonus.
+
+### 17.6. Структура проекта после A1+A2
+
+```
++ entities/state.gd            # новый
++ data/states.json             # новый (4 державы)
++ data/pirates.json            # новый (attack params + haven_towns)
+~ entities/town.gd             # +state_id
+~ entities/ship.gd             # +armed
+~ data/ships.json              # +armed field (все 0 на этом этапе)
+~ data/towns.json              # +state field per town
+~ core/world_state.gd          # +states, +pirates_db, +pirate_rng; total_money +treasuries
+~ simulation/systems/trade_system.gd  # +_collect_customs, effective_money for buys
+~ simulation/ships_tick.gd     # +_roll_pirate_attack in sailing branch
++ tests/test_states.gd + .tscn         # 4 checks
++ tests/test_pirates.gd + .tscn        # 4 checks
+~ tests/test_manual_trade.gd   # updated 2 tests for tax
+~ Concept.md                   # this section
+```
+
+Всего теперь **28 тестов** (5+2+5+4+4+4+4), все зелёные, drift=0.0000 на
+365-day sim.
+
 
 

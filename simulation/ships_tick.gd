@@ -50,6 +50,11 @@ func _step_ship(ship: Ship) -> void:
 
 	# Movement.
 	if ship.state == "sailing":
+		# Stage A1: pirate attack roll. Only fires while the ship is at sea
+		# (a docked ship is under port protection). Uses a SEPARATE rng stream
+		# (WorldState.pirate_rng) so drought/storm/famine event_rng stays
+		# bit-stable across this change. armed ships reduce the probability.
+		_roll_pirate_attack(ship, company, upkeep_town)
 		var dest: Town = WorldState.get_town(ship.destination_id)
 		if dest == null:
 			ship.state = "idle"
@@ -107,3 +112,43 @@ func _town_for(ship: Ship) -> Town:
 	if tid == "":
 		return null
 	return WorldState.get_town(tid)
+
+# Stage A1: roll for a pirate attack on a sailing ship and apply the
+# outcome (cargo loss + repair upkeep). See header comment for money /
+# goods conservation notes.
+func _roll_pirate_attack(ship: Ship, company: Company, local_town: Town) -> void:
+	var def: Dictionary = WorldState.pirates_db.get("pirate_attack", {})
+	if def.is_empty():
+		return
+	var base_prob: float = float(def.get("prob_per_sailing_day", 0.0))
+	if base_prob <= 0.0:
+		return
+	# armed ships cut the effective probability (1+armed divisor).
+	var eff_prob: float = base_prob / (1.0 + float(ship.armed))
+	if WorldState.pirate_rng.randf() >= eff_prob:
+		return
+	# Hit. Lose cargo_loss_pct of a random carried good (if any).
+	var loss_pct: float = float(def.get("cargo_loss_pct", 0.0))
+	var lost_good: String = ""
+	var lost_qty: float = 0.0
+	if loss_pct > 0.0 and ship.cargo_used > 0.0:
+		var goods_in_hold: Array = ship.cargo.keys()
+		# Deterministic pick: cycle through cargo keys with pirate_rng.
+		var pick_idx: int = WorldState.pirate_rng.randi() % goods_in_hold.size()
+		lost_good = String(goods_in_hold[pick_idx])
+		var have: float = ship.cargo_qty(lost_good)
+		lost_qty = ship.remove_cargo(lost_good, have * loss_pct)
+	# Repair upkeep: extra_upkeep_mult × daily upkeep, paid to local town
+	# (same routing as storm_extra_upkeep — company -> population_money).
+	var extra_mult: float = float(def.get("extra_upkeep_mult", 0.0))
+	var extra_upkeep: float = extra_mult * ship.upkeep_daily
+	if extra_upkeep > 0.0 and company.money >= extra_upkeep:
+		company.money -= extra_upkeep
+		if local_town != null:
+			local_town.population_money += extra_upkeep
+	var msg: String = "Пираты атаковали %s" % ship.id
+	if lost_qty > 0.0:
+		msg += ": -%.1f %s" % [lost_qty, lost_good]
+	if extra_upkeep > 0.0:
+		msg += ", ремонт %.1f" % extra_upkeep
+	EventBus.message.emit(msg)

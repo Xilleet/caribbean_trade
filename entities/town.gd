@@ -20,6 +20,7 @@ var development: float = 1.0
 var satisfaction: float = 1.0
 var external_balance: float = 0.0  # net money flow to/from the wider Caribbean
 var port_capacity: float = 100.0
+var state_id: String = ""        # Stage A2: which colonial power owns this town
 
 func _init(p_id: String, p_name: String) -> void:
 	id = p_id

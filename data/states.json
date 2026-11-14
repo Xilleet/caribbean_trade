@@ -1,0 +1,6 @@
+{
+  "spain":       {"name": "Испания",    "starting_treasury": 50000, "tax_rate": 0.05},
+  "england":     {"name": "Англия",     "starting_treasury": 40000, "tax_rate": 0.04},
+  "france":      {"name": "Франция",    "starting_treasury": 35000, "tax_rate": 0.05},
+  "netherlands": {"name": "Нидерланды", "starting_treasury": 30000, "tax_rate": 0.03}
+}

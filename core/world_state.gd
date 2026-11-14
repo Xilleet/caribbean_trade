@@ -14,6 +14,11 @@ var recipes: Dictionary = {}         # recipe_id -> recipe
 var industries_db: Dictionary = {}   # template id -> template
 var ships_db: Dictionary = {}        # ship type -> def
 var events_db: Dictionary = {}       # event type -> def (Stage 6)
+var states: Array[State] = []        # Stage A2: colonial powers Spain/England/France/Netherlands
+var pirates_db: Dictionary = {}      # Stage A1: pirate_attack params + haven towns
+var pirate_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+# Stage A1: separate rng stream for pirate rolls (per-sailing-day) so the
+# drought/storm/famine event_rng stream stays bit-stable.
 
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 # Stage 6: a SEPARATE rng stream for event rolls, so events never perturb the
@@ -28,6 +33,7 @@ var built: bool = false
 func _ready() -> void:
 	rng.seed = world_seed
 	event_rng.seed = world_seed + 12579023   # distinct deterministic stream
+	pirate_rng.seed = world_seed + 91137     # Stage A1: yet another stream
 
 func reset() -> void:
 	towns.clear()
@@ -39,9 +45,12 @@ func reset() -> void:
 	industries_db.clear()
 	ships_db.clear()
 	events_db.clear()
+	states.clear()                  # Stage A2
+	pirates_db.clear()              # Stage A1
 	active_events.clear()
 	rng.seed = world_seed
 	event_rng.seed = world_seed + 12579023
+	pirate_rng.seed = world_seed + 91137   # Stage A1
 	# A fresh build must start on day 0 too — otherwise a second build_world in
 	# the same process (tests, or a new-game button later) leaves the week
 	# boundary misaligned with economy age, and state-triggered events (famine)
@@ -56,6 +65,15 @@ func build_world() -> void:
 	industries_db = _load_json("res://data/industries.json")
 	ships_db = _load_json("res://data/ships.json")
 	events_db = _load_json("res://data/events.json")
+	pirates_db = _load_json("res://data/pirates.json")   # Stage A1
+	# Stage A2: spawn colonial-power State objects. Each gets a starting treasury
+	# and a tax_rate (customs duty on ship trades). Treasury grows as trades flow
+	# through the state's ports; total_money() includes it so conservation holds.
+	var states_data: Dictionary = _load_json("res://data/states.json")
+	for sid in states_data.keys():
+		var sd: Dictionary = states_data[sid]
+		var st := State.new(String(sid), String(sd["name"]), float(sd["starting_treasury"]), float(sd["tax_rate"]))
+		states.append(st)
 	var towns_data: Dictionary = _load_json("res://data/towns.json")
 
 	for town_id in towns_data.keys():
@@ -66,6 +84,7 @@ func build_world() -> void:
 		t.poor = float(pop["poor"])
 		t.middle = float(pop["middle"])
 		t.rich = float(pop["rich"])
+		t.state_id = String(td.get("state", ""))   # Stage A2: colonial ownership
 		# Seeded per-class population perturbation — this is what makes
 		# world_seed actually change the run. Money-neutral: population counts
 		# are NOT in total_money(), so the conservation invariant still holds.
@@ -191,6 +210,15 @@ func get_ship(id: String) -> Ship:
 			return s
 	return null
 
+# Stage A2: lookup a colonial power by id (e.g. "spain").
+func get_state(id: String) -> State:
+	if id == "":
+		return null
+	for s in states:
+		if s.id == id:
+			return s
+	return null
+
 # The player's ship — the one owned by the "player" company. Falls back to
 # ships[0] only if no player-owned ship exists (defensive; build_world always
 # creates one). Use this instead of indexing ships[0] directly so AI ships
@@ -253,6 +281,9 @@ func total_money() -> float:
 			s += ind.money
 	for c in companies:
 		s += c.money
+	# Stage A2: state treasuries hold customs tax collected on ship trades.
+	for st in states:
+		s += st.treasury
 	return s
 
 func _load_json(path: String) -> Dictionary:

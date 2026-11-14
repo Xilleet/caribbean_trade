@@ -16,6 +16,19 @@ var market_system: MarketSystem
 func _init(p_market: MarketSystem) -> void:
 	market_system = p_market
 
+# Stage A2: customs duty on ship trades. Returns the tax amount collected
+# and routes it company-side (caller already moved cost/revenue through
+# market.fund). The caller subtracts the returned tax from company.money.
+# Money flow: company.money -> state.treasury. state.treasury is in
+# WorldState.total_money() so the conservation invariant holds.
+func _collect_customs(town: Town, trade_value: float) -> float:
+	var st: State = WorldState.get_state(town.state_id)
+	if st == null or st.tax_rate <= 0.0 or trade_value <= 0.0:
+		return 0.0
+	var tax: float = trade_value * st.tax_rate
+	st.treasury += tax
+	return tax
+
 # `rule` is a TradeRoute.StopRule (untyped here only because inner-class type
 # annotations can be finicky across Godot point releases; the fields used are
 # accessed by name, which is safe on any RefCounted holding them).
@@ -33,17 +46,26 @@ func execute_buy(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	var qty: float = min(min(rule.max_qty, drainable), ship.cargo_free())
 	if qty <= 0.0:
 		return {"qty": 0.0, "cost": 0.0}
-	var res: Dictionary = market_system.buy(town.market, rule.good_id, qty, company.money, rule.price_limit)
+	# Stage A2: reserve room for customs tax — pass money / (1 + tax_rate)
+	# so the buy stops before exhausting the wallet, leaving enough to pay
+	# the port tax that follows. With tax_rate=0 the divisor is 1 (no change).
+	var eb_state: State = WorldState.get_state(town.state_id)
+	var eb_tax_rate: float = eb_state.tax_rate if eb_state != null else 0.0
+	var eb_money: float = company.money / (1.0 + eb_tax_rate) if (1.0 + eb_tax_rate) > 0.0 else company.money
+	var res: Dictionary = market_system.buy(town.market, rule.good_id, qty, eb_money, rule.price_limit)
 	var actual: float = float(res["qty"])
 	var cost: float = float(res["cost"])
 	company.money -= cost
 	town.market.fund += cost
+	var tax: float = _collect_customs(town, cost)   # Stage A2
+	company.money -= tax
 	ship.add_cargo(rule.good_id, actual)
 	ship.last_buy_cost = cost
 	ship.lifetime_buy_cost += cost
 	EventBus.trade_completed.emit(town.id, rule.good_id, actual, float(res["price"]))
-	EventBus.message.emit("bought %.0f %s @ %.2f in %s (-%.1f)" %
-			[actual, rule.good_id, float(res["price"]), town.name, cost])
+	var tax_msg: String = ", tax %.1f" % tax if tax > 0.0 else ""
+	EventBus.message.emit("bought %.0f %s @ %.2f in %s (-%.1f%s)" %
+			[actual, rule.good_id, float(res["price"]), town.name, cost, tax_msg])
 	return {"qty": actual, "cost": cost}
 
 func execute_sell(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
@@ -70,11 +92,14 @@ func execute_sell(ship: Ship, company: Company, town: Town, rule) -> Dictionary:
 	ship.remove_cargo(rule.good_id, actual)
 	town.market.fund -= revenue
 	company.money += revenue
+	var tax: float = _collect_customs(town, revenue)   # Stage A2
+	company.money -= tax
 	ship.last_sell_revenue = revenue
 	ship.lifetime_sell_revenue += revenue
 	EventBus.trade_completed.emit(town.id, rule.good_id, actual, float(res["price"]))
-	EventBus.message.emit("sold %.0f %s @ %.2f in %s (+%.1f)" %
-			[actual, rule.good_id, float(res["price"]), town.name, revenue])
+	var tax_msg: String = ", tax %.1f" % tax if tax > 0.0 else ""
+	EventBus.message.emit("sold %.0f %s @ %.2f in %s (+%.1f%s)" %
+			[actual, rule.good_id, float(res["price"]), town.name, revenue, tax_msg])
 	return {"qty": actual, "revenue": revenue}
 
 func execute_route(ship: Ship, company: Company, town: Town, route: TradeRoute) -> void:
@@ -106,7 +131,11 @@ func manual_buy(ship: Ship, company: Company, town: Town, good_id: String, qty: 
 	if capped <= 0.0:
 		EventBus.message.emit("hold full — cannot buy %s" % good_id)
 		return {"qty": 0.0, "cost": 0.0, "price": float(town.market.get_entry(good_id).current_price)}
-	var res: Dictionary = market_system.buy(town.market, good_id, capped, company.money)
+	# Stage A2: reserve room for customs tax (same as execute_buy).
+	var mb_state: State = WorldState.get_state(town.state_id)
+	var mb_tax_rate: float = mb_state.tax_rate if mb_state != null else 0.0
+	var mb_money: float = company.money / (1.0 + mb_tax_rate) if (1.0 + mb_tax_rate) > 0.0 else company.money
+	var res: Dictionary = market_system.buy(town.market, good_id, capped, mb_money)
 	var actual: float = float(res["qty"])
 	var cost: float = float(res["cost"])
 	var price: float = float(res["price"])
@@ -115,12 +144,15 @@ func manual_buy(ship: Ship, company: Company, town: Town, good_id: String, qty: 
 		return {"qty": 0.0, "cost": 0.0, "price": price}
 	company.money -= cost
 	town.market.fund += cost
+	var tax: float = _collect_customs(town, cost)   # Stage A2
+	company.money -= tax
 	ship.add_cargo(good_id, actual)
 	ship.last_buy_cost = cost
 	ship.lifetime_buy_cost += cost
 	EventBus.trade_completed.emit(town.id, good_id, actual, price)
-	EventBus.message.emit("bought %.0f %s @ %.2f in %s (-%.1f)" %
-			[actual, good_id, price, town.name, cost])
+	var tax_msg: String = ", tax %.1f" % tax if tax > 0.0 else ""
+	EventBus.message.emit("bought %.0f %s @ %.2f in %s (-%.1f%s)" %
+			[actual, good_id, price, town.name, cost, tax_msg])
 	return {"qty": actual, "cost": cost, "price": price}
 
 func manual_sell(ship: Ship, company: Company, town: Town, good_id: String, qty: float) -> Dictionary:
@@ -139,9 +171,12 @@ func manual_sell(ship: Ship, company: Company, town: Town, good_id: String, qty:
 	ship.remove_cargo(good_id, actual)
 	town.market.fund -= revenue
 	company.money += revenue
+	var tax: float = _collect_customs(town, revenue)   # Stage A2
+	company.money -= tax
 	ship.last_sell_revenue = revenue
 	ship.lifetime_sell_revenue += revenue
 	EventBus.trade_completed.emit(town.id, good_id, actual, price)
-	EventBus.message.emit("sold %.0f %s @ %.2f in %s (+%.1f)" %
-			[actual, good_id, price, town.name, revenue])
+	var tax_msg: String = ", tax %.1f" % tax if tax > 0.0 else ""
+	EventBus.message.emit("sold %.0f %s @ %.2f in %s (+%.1f%s)" %
+			[actual, good_id, price, town.name, revenue, tax_msg])
 	return {"qty": actual, "revenue": revenue, "price": price}
