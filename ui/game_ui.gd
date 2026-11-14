@@ -46,7 +46,7 @@ var _town_body: Label            # read-only price table (shown when not docked 
 var _trade_panel: VBoxContainer  # per-good buy/sell buttons (shown when docked here)
 var _ship_body: Label
 var _route_panel: VBoxContainer
-var _diplo_panel: VBoxContainer   # Stage A3.1: diplomacy (bribe + citizenship)
+var _diplo_panel: VBoxContainer   # Stage A3.1: diplomacy (bribe + citizenship per state)
 var _log_label: Label
 var _log_lines: Array[String] = []
 
@@ -107,7 +107,7 @@ func _build_layout() -> void:
 
 	# Right: a vertical stack of panels.
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(640.0, 0.0)   # Stage A3.1: widened from 560 to fit Diplomacy panel + town rows
+	right.custom_minimum_size = Vector2(640.0, 0.0)   # Stage A3.1: widened 560->640 to fit Diplomacy panel
 	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 4)
 	split.add_child(right)
@@ -330,16 +330,22 @@ func _rebuild_trade_panel() -> void:
 		return
 	var ship: Ship = WorldState.get_player_ship()
 
-	# Header: dock banner + Depart button (shows the next destination).
+	# Header: dock banner (town + state) + Depart button (shows the next destination).
 	var next_id: String = String(_controller.call("player_next_destination"))
 	var next_name: String = "—"
 	var nt: Town = WorldState.get_town(next_id)
 	if nt != null:
 		next_name = nt.name
+	# state affiliation shown in the banner, tax rate on the readout line
+	# below — so the player sees whose port they're in and what customs they'll
+	# pay before they click Buy. Previously the docked view showed neither.
+	var st: State = WorldState.get_state(t.state_id)
+	var st_name: String = st.name if st != null else "—"
+	var tax_pct: int = int(round(st.tax_rate * 100.0)) if st != null else 0
 	var hdr := HBoxContainer.new()
 	hdr.add_theme_constant_override("separation", 6)
 	_trade_panel.add_child(hdr)
-	_mklabel(hdr, "Docked at %s — trade or Depart" % t.name, 14, Color(0.5, 0.85, 1.0))
+	_mklabel(hdr, "Docked at %s [%s]" % [t.name, st_name], 14, Color(0.5, 0.85, 1.0))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(spacer)
@@ -347,9 +353,18 @@ func _rebuild_trade_panel() -> void:
 			150.0, 26.0, 13, Color(1.0, 0.9, 0.2))
 	if next_id == "" or next_id == dock:
 		dep.disabled = true
+	# port economic readout — population, market fund, satisfaction, and
+	# the customs tax rate. The docked view used to clear this entirely; now it
+	# shows the same context the read-only inspection view does.
+	_mklabel(_trade_panel, "pop %d · fund $%.0f · sat %d%% · tax %d%%" %
+			[int(t.total_population()), t.market.fund, int(t.satisfaction * 100.0), tax_pct],
+			12, Color(0.6, 0.65, 0.7))
 
-	# Column header.
-	_mklabel(_trade_panel, "%-12s %6s %8s %6s" % ["good", "stock", "price", "hold"],
+	# Column header. U1: dem/sup columns added so the docked player sees market
+	# pressure at the port they're trading in (the read-only inspection view
+	# already had them; the docked trade panel dropped them).
+	_mklabel(_trade_panel, "%-12s %6s %7s %4s %4s %4s" %
+			["good", "stock", "price", "dem", "sup", "hold"],
 			12, Color(0.55, 0.6, 0.65))
 
 	# One row per good that is active in this port OR carried by the ship (so
@@ -365,8 +380,9 @@ func _rebuild_trade_panel() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 3)
 		_trade_panel.add_child(row)
-		var lab := _mklabel(row, "%-12s %6.1f %8.2f %6.0f" %
-				[String(gid), e.stock, e.current_price, hold], 12, Color(0.85, 0.85, 0.85))
+		var lab := _mklabel(row, "%-12s %6.1f %7.2f %4.0f %4.0f %4.0f" %
+				[String(gid), e.stock, e.current_price, e.daily_demand, e.daily_supply, hold],
+				12, Color(0.85, 0.85, 0.85))
 		lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_mkbutton(row, "Buy 1", Callable(self, "_on_buy").bind(String(gid), 1.0), 50.0, 22.0, 12, Color(0.5, 0.9, 0.55))
 		_mkbutton(row, "Buy 10", Callable(self, "_on_buy").bind(String(gid), 10.0), 58.0, 22.0, 12, Color(0.5, 0.9, 0.55))
@@ -412,6 +428,12 @@ func _rebuild_route_panel() -> void:
 			130.0, 22.0, 12, Color(0.5, 0.85, 1.0))
 	add_btn.disabled = already or _selected_town == ""
 
+# --- diplomacy panel (bribe + citizenship per state) ---
+# One row per colonial power: current-flag star, name, rep (green/red), Bribe
+# button (cost scales with hostility, 4-week cooldown), Citizenship button
+# (needs rep>50 + $5000, switches the ship's flag_state). All mutations are
+# delegated to the Main controller (bribe_state / apply_citizenship); the panel
+# only reads state to set its own disable flags and button labels.
 func _rebuild_diplo_panel() -> void:
 	_clear(_diplo_panel)
 	var company: Company = WorldState.get_company("player")
@@ -497,8 +519,16 @@ func _render_ship() -> void:
 	lines.append("state %-8s at %-11s dest %s" %
 			[s.state, here.name if here != null else "—",
 			 WorldState.get_town(s.destination_id).name if s.destination_id != "" and WorldState.get_town(s.destination_id) != null else s.destination_id])
-	lines.append("cargo %.0f/%.0f   wallet $%.0f" %
-			[s.cargo_used, s.cargo_capacity, co.money if co != null else 0.0])
+	# today's net wallet delta — money - last_day_money (snapshot taken at
+	# the start of the day in SimulationEngine.step_day). Shown only from day 1
+	# on; on day 0 last_day_money is still the default 0 and the delta would be
+	# meaningless. With the per-event upkeep log this answers "where did the
+	# money go" both in aggregate (here) and per drain (log panel).
+	var day_delta := ""
+	if co != null and SimulationClock.day >= 1:
+		day_delta = "   day Δ %+.0f" % (co.money - co.last_day_money)
+	lines.append("cargo %.0f/%.0f   wallet $%.0f%s" %
+			[s.cargo_used, s.cargo_capacity, co.money if co != null else 0.0, day_delta])
 	if not s.cargo.is_empty():
 		var parts := PackedStringArray()
 		for gid in s.cargo.keys():

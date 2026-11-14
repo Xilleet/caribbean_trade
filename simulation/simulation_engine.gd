@@ -32,6 +32,12 @@ func _init() -> void:
 	ships_tick = ShipsTick.new(trade_system, market_system)
 
 func step_day() -> void:
+	# snapshot each company's wallet at the start of the day, before any
+	# ticks move money. The UI reads `money - last_day_money` on day_advanced to
+	# show today's net delta — this is what makes the daily upkeep drain visible
+	# instead of "money just decreases". No money moves here, no rng touched.
+	for c in WorldState.companies:
+		c.last_day_money = c.money
 	# Town economy first (sets today's prices), then ships trade at those prices.
 	for t in WorldState.towns:
 		daily_tick.run(t)

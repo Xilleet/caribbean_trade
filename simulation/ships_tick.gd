@@ -39,10 +39,18 @@ func _step_ship(ship: Ship) -> void:
 	company.money -= base_upkeep
 	if upkeep_town != null:
 		upkeep_town.population_money += base_upkeep
+	# the player's daily upkeep is a silent wallet drain — log it so the
+	# player sees where the money went (answers "money just decreases"). AI
+	# companies stay quiet: their books are off-screen and logging 3 rivals/day
+	# would push the player's own trade lines out of the 14-line log.
+	if ship.owner_id == "player" and base_upkeep > 0.0:
+		EventBus.message.emit("upkeep -%.1f (%s)" % [base_upkeep, ship.id])
 	if storm_extra > 0.0 and company.money >= storm_extra:
 		company.money -= storm_extra
 		if upkeep_town != null:
 			upkeep_town.population_money += storm_extra
+		if ship.owner_id == "player":
+			EventBus.message.emit("storm repair -%.1f (%s)" % [storm_extra, ship.id])
 
 	# If idle with no destination, point it at the first stop of its route.
 	if ship.state == "idle" or (ship.destination_id == "" and ship.state != "docked"):

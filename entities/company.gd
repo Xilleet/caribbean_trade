@@ -10,12 +10,18 @@ var name: String
 var money: float = 0.0
 var is_ai: bool = false
 var ship_ids: Array[String] = []
-# per-state bribe cooldown — maps state_id -> SimulationClock.week
-# of the last accepted bribe. A bribe is refused while (current_week - last) < 4.
+# snapshot of money at the start of the current simulated day. The UI
+# shows `money - last_day_money` as today's net wallet delta so the player can
+# see where funds went (upkeep drains are otherwise invisible). Snapshotted in
+# SimulationEngine.step_day before any ticks run; not read by the economy.
+var last_day_money: float = 0.0
+# Stage A3.1: per-state week of the last bribe (state_id -> int week). Drives
+# the 4-week bribe cooldown in the Diplomacy panel and main.bribe_state. Empty
+# by default (no bribes yet); not read by the economy or any existing test.
 var bribe_cooldowns: Dictionary = {}
 
 func _init(p_id: String, p_name: String, p_money: float, p_is_ai: bool = false) -> void:
-        id = p_id
-        name = p_name
-        money = p_money
-        is_ai = p_is_ai
+	id = p_id
+	name = p_name
+	money = p_money
+	is_ai = p_is_ai
