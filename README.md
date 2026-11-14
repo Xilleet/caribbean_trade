@@ -978,3 +978,87 @@ Victoria 3 по глубине экономики и населения.
 Distant Worlds по автономности и самостоятельной жизни мира.
 
 Собственная концепция — торговая компания как участник постоянно меняющейся исторической симуляции.
+
+Дополнительно:
+
+A. Автономный мир — states/piracy (README §3.3, §3.4, §7)
+#
+Фича
+Реальные/игровые ориентиры
+Механика
+Объём
+A1	Пираты	Исторический Карибский бассейн 1600-х (Тортуга = пиратская столица); Port Royale — пираты атакуют корабли на маршрутах; Distant Worlds — пираты как отдельная фракция	Новый тип ActiveEvent: pirate_attack на корабль в море. Эффект: шанс потери N% cargo + доп-upkeep на ремонт. Пиратские базы в конкретных городах (Тортуга исторически). Игрок может купить armed escort ship для снижения шанса	~150 строк + data/pirates.json
+A2	Государства и принадлежность	Реальные колониальные державы: Испания (Сантьяго, Гибара), Англия (Порт-Рояль/Ямайка), Франция (Тортуга), Нидерланды (Кайман). Port Royale 2 — каждая нация имеет свои порты и флаг	Каждому городу добавить state_id. У государств: бюджет, налоговая ставка, отношения с другими. Distant Worlds — государства как автономные агенты	~100 строк + data/states.json
+A3	Войны и блокады	Исторические: Англо-испанская война 1585-1604, Anglo-Dutch wars. Port Royale 2: войны закрывают порты для чужих кораблей. Victoria 3: дипломатические инциденты	War/peace как новый системный event. Во время войны state A ↔ B: порты state A закрыты для кораблей под флагом B, пошлины удваиваются. Мирные договоры через N дней	~200 строк поверх A1+A2
+A4	Налоги и пошлины	Victoria 3 — налоги/тарифы как рычаг государства; реальный mercantilism 17 в.	Государство устанавливает tax на的交易 в своих портах. State_budget растёт за счёт налогов → может субсидировать порты/флот. Игрок видит налог в UI	~80 строк поверх A2
+
+B. Глубина населения — POPs (README §4, Concept §9.2)
+#
+Фича
+Ориентиры
+Механика
+Объём
+B1	Профессии и классы	Victoria 3 (явно назван в README §1.1) — POPs с profession, qualification; реальная социальная структура 17 в. (крестьяне, ремесленники, купцы, моряки, священники)	Превратить poor/middle/rich (3 скаляра) в массив POP-групп с полями: profession, count, savings, living_standard, satisfaction, migration_propensity. Каждая профессия имеет свою потребительскую корзину (already partially in consumption_system.gd::BASKETS)	~400 строк рефакторинг
+B2	Рынок труда и зарплаты	Victoria 3 — конкуренция за рабочие места, зарплаты respond to supply/demand; реальная labour market	Industries нанимают из локального пула (по профессии). Зарплаты растут при дефиците, падают при безработице. Увольнение при unprofitable. Mиграция из городов с низкой satisfaction/wages	~250 строк поверх B1
+B3	Сбережения и уровень жизни	Victoria 3 SoL (standard of living) = потребление / потребности; реальная динамика накопления	POPs копят деньги (savings), тратят на корзину по приоритету (already partial), SoL = satisfied / desired. SoL > threshold → рост, < → упадок и миграция. README §4.4 прямо требует	~150 строк поверх B1
+B4	Социальная мобильность	Victoria 3 — promotion/demotion между классами; реальный social mobility в колониях	При высоком SoL и сбережениях бедные → средний класс. При безработице средний → бедные. Священники/моряки/ремесленники как отдельные профессии	~120 строк поверх B1+B3
+
+C. Капитал и собственность (README §5.5, Concept §9.4)
+#
+Фича
+Ориентиры
+Механика
+Объём
+C1	Собственность предприятий	Port Royale — игрок строит/покупает заводы; Distant Worlds — приватная собственность mines/factories; реальный colonial entrepreneurship	Каждому industry добавить owner_id (town / player / ai_company / entrepreneur / state). Companies могут покупать/продавать. Revenue идёт владельцу, не в town.population_money	~200 строк рефакторинг
+C2	Строительство предприятий	Port Royale 2, Anno 1602 — строительство зданий по слотам; реальный colonial investment	Игрок (и AI) может построить новое предприятие: выбирает тип, платит capital, ждёт N дней, нанимает работников. UI панель «Build»	~180 строк поверх C1
+C3	Банкротства	Victoria 3 — businesses закрываются при долгах; реальный colonial churn	Industry с money < 0 и no profit в течение N недель → закрывается, workers уволены, owner теряет инвестицию. Может быть куплена конкурентом за fraction стоимости	~100 строк поверх C1
+
+D. Контент и контент-масштаб (README §8.2, §11.7)
+#
+Фича
+Ориентиры
+Механика
+Объём
+D1	Расширение карты	Реальные карибские города: Havana, Nassau, San Juan, Santo Domingo, Bridgetown, Cartagena, Maracaibo. Port Royale — вся Карибская карта	Добавить 10-15 новых городов в data/towns.json с реальными координатами. Новые государства (Spain, England, France, Netherlands, Denmark)	data-only ~50 строк JSON
+D2	Новые товары и цепочки	Реальные colonial goods: coffee, cocoa, indigo, salt, sugar cane→sugar→rum (есть), cotton→textiles (есть), tobacco (есть), weapon, ship_parts, salt_cod. Anno 1602 — многослойные цепочки	+5-10 новых товаров и рецептов. Цепочка salt_cod (fish + salt) для прибрежных городов.Weapons для state/military demand	data-only
+D3	Новые корабли	Реальный age of sail: fluyt (большой груз), frigate (вооружённый), galleon (испанский treasure fleet), caravel (старый), xebec (быстрый пиратский). Port Royale 2 — десятки типов	+5-7 типов кораблей в data/ships.json с разными cargo/speed/upkeep/armed-escort stats	data-only
+D4	Сохранения/загрузки	Любая long-play стратегия; Victoria 3 — детальное state snapshot	Serialize WorldState в JSON. Load button в UI. Snapshot каждые N дней для undo	~250 строк
+
+E. Геймплейный слой (Concept §9.1)
+#
+Фича
+Ориентиры
+Механика
+Объём
+E1	Миссии и цели	Port Royale — «build fortune of 100k», «deliver X to Y by date»; Anno 1602 — continuous missions; реальные colonial challenges	Mission panel: 3-5 активных миссий (накопление капитала, доставка груза к сроку, monopolise товар). Progress tracking. Win condition	~200 строк + UI
+E2	UI экраны	Port Royale 2 — separate town/ship/company screens; Anno — подробные панели	Screens: town_detail (pop, industries, market), ship_detail (cargo, route, stats), company_detail (P/L, fleet, industries), world_screen (events log, state relations)	~400 строк UI
+
+F. Визуальный слой (README §11.6, явно последний)
+#
+Фича
+Ориентиры
+Объём
+F1	2D-карта (sprites)	Port Royale 2 визуал — спрайты городов/кораблей, sea tiles, color-coded по государству	~600 строк + ассеты
+F2	Звук	Anno, Port Royale — ambient sea, UI clicks, event sounds	~100 строк + ассеты
+
+Зависимости (что блокирует что)
+text
+A2 (states)        ─┬─→ A3 (wars)
+                   ├─→ A4 (taxes)
+                   └─→ D1 (map expansion: new towns need state_id)
+
+B1 (POPs base)     ─┬─→ B2 (labour market)
+                   ├─→ B3 (SoL/savings)
+                   └─→ B4 (mobility)
+
+C1 (ownership)     ─┬─→ C2 (build)
+                   ├─→ C3 (bankruptcy)
+                   └─→ B2 (companies hire from pop pool, need ownership to route wages)
+
+D2 (new goods)     ─←─ requires balance validation (tranched pricing tests)
+D3 (new ships)     ─←─ requires A1 (pirate attacks to make armed ships meaningful)
+
+E1 (missions)      ─←─ benefits from C1+C2 (player has something to manage)
+E2 (UI screens)    ─←─ benefits from everything (more state to show)
+
+F1 (2D map)        ─←─ last per README §11.6, after economy+content stabilised
