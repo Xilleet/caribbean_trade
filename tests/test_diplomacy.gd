@@ -1,6 +1,6 @@
 extends Node
 
-##  tests for the diplomacy system (bribes + citizenship). Run:
+## Tests for the diplomacy system (bribes + citizenship). Run:
 ##   godot --headless --path <project> tests/test_diplomacy.tscn
 ##
 ## Covers:
@@ -9,6 +9,7 @@ extends Node
 ##  - bribe with insufficient funds is a no-op
 ##  - citizenship changes flag_state and conserves money (fee -> state.treasury)
 ##  - citizenship blocked when rep <= 50 (flag/money unchanged)
+##  - citizenship penalizes the bystander states -10 rep (defection rupture)
 ##
 ## The bribe/citizenship logic lives on Main (main.gd) as controller methods.
 ## We instantiate Main without adding it to the scene tree (so _ready never
@@ -23,6 +24,7 @@ func _ready() -> void:
 	ok = ok and test_bribe_blocked_no_funds()
 	ok = ok and test_citizenship_changes_flag_and_conserves()
 	ok = ok and test_citizenship_blocked_low_rep()
+	ok = ok and test_citizenship_penalizes_other_states()
 	print("\n=== %s ===" % ("ALL STAGE-A3.1 TESTS PASSED" if ok else "SOME STAGE-A3.1 TESTS FAILED"))
 	get_tree().quit(0 if ok else 1)
 
@@ -48,11 +50,11 @@ func test_bribe_conserves_and_raises_rep() -> bool:
 	var rep_after := WorldState.get_player_rep(state_id)
 	var cd_week := int(company.bribe_cooldowns.get(state_id, -999))
 	# Money flows company -> state.treasury (both in total_money -> drift 0),
-	# rep rises by BRIBE_REP_GAIN (20), cooldown stamped to this week.
+	# rep rises by BRIBE_REP_GAIN (10), cooldown stamped to this week.
 	var passed: bool = abs(drift) < 0.01 \
 		and abs(company.money - (5000.0 - cost)) < 0.01 \
 		and abs(st.treasury - (treasury_before + cost)) < 0.01 \
-		and abs(rep_after - (rep_before + 20.0)) < 0.01 \
+		and abs(rep_after - (rep_before + 10.0)) < 0.01 \
 		and cd_week == SimulationClock.week
 	_report("bribe_conserves_and_raises_rep", passed,
 		"cost=%.0f drift=%.4f rep=%.0f->%.0f money=%.0f treasury+=%.0f cd_week=%d" %
@@ -137,6 +139,39 @@ func test_citizenship_blocked_low_rep() -> bool:
 	var passed: bool = ship.flag_state == flag_before and abs(company.money - money_before) < 0.01
 	_report("citizenship_blocked_low_rep", passed,
 		"flag=%s (was %s) money=%.0f" % [ship.flag_state, flag_before, company.money])
+	return passed
+
+func test_citizenship_penalizes_other_states() -> bool:
+	WorldState.build_world()
+	var main: Node = _main()
+	var new_id := "france"
+	var st: State = WorldState.get_state(new_id)
+	var company: Company = WorldState.get_company("player")
+	var ship: Ship = WorldState.get_player_ship()
+	company.money = 5000.0
+	# Known per-state rep baseline: new=60 (eligible), old flag=england, two
+	# bystanders (spain, netherlands). Direct dict writes for determinism.
+	WorldState.player_rep["france"] = 60.0
+	WorldState.player_rep["england"] = 30.0
+	WorldState.player_rep["spain"] = 25.0
+	WorldState.player_rep["netherlands"] = 15.0
+	var old_flag := ship.flag_state   # "england"
+	var total_before := WorldState.total_money()
+	main.call("apply_citizenship", new_id)
+	var drift := WorldState.total_money() - total_before
+	# New flag (france) and old flag (england) are exempt; spain & netherlands
+	# each lose 10 (defection penalty). Money conserved (5000 fee -> state.treasury).
+	var passed: bool = ship.flag_state == new_id \
+		and abs(drift) < 0.01 \
+		and abs(WorldState.get_player_rep("france") - 60.0) < 0.01 \
+		and abs(WorldState.get_player_rep("england") - 30.0) < 0.01 \
+		and abs(WorldState.get_player_rep("spain") - 15.0) < 0.01 \
+		and abs(WorldState.get_player_rep("netherlands") - 5.0) < 0.01
+	_report("citizenship_penalizes_other_states", passed,
+		"flag=%s->%s drift=%.4f rep fr=%.0f eng=%.0f sp=%.0f nl=%.0f" %
+		[old_flag, ship.flag_state, drift,
+		 WorldState.get_player_rep("france"), WorldState.get_player_rep("england"),
+		 WorldState.get_player_rep("spain"), WorldState.get_player_rep("netherlands")])
 	return passed
 
 func _report(name: String, passed: bool, detail: String) -> void:

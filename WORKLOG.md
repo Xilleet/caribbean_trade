@@ -732,14 +732,16 @@ diplomacy):
 **Взятка (`main.bribe_state`).** Игрок платит чиновникам state — cost =
 `500·(1+max(0,−rep/50))`, т.е. 500 при rep≥0, до 1500 при rep=−100. Деньги
 `company → state.treasury` (консервация: state.treasury ∈ total_money → drift=0).
-+20 rep с state. Cooldown 4 недели (`company.bribe_cooldowns[state_id] = week`).
++10 rep с state. Cooldown 4 недели (`company.bribe_cooldowns[state_id] = week`).
 Не требует dock (курьер) — панель видна всегда.
 
 **Натурализация (`main.apply_citizenship`).** При rep>50 и $5000 — смена
 `ship.flag_state` на state_id. Деньги `company → state.treasury` (консервация).
 Корабль теперь летит под новым флагом → `ShipsTick._can_dock` пускает в порты
-нового state даже если бывший флаг в войне с ними. Минимальный вариант: rep при
-смене не меняется (без штрафа за дезертирство — можно добавить позже).
+нового state даже если бывший флаг в войне с ними. Штраф за дезертирство: все
+прочие states (кроме нового и бывшего флага) теряют по −10 rep — смена стороны
+это реальный дипломатический разрыв, не бесплатная смена флага. Деньги при
+штрафе не двигаются → drift=0.
 
 **UI:** панель Diplomacy между Route и Log — по строке на state: ★ текущий флаг,
 name, rep (зелёный/красный), кнопка Bribe (cost в label, disabled на cooldown
@@ -749,11 +751,11 @@ dem/sup, Δ-кошелька, upkeep-лог) сохранены — merge, не 
 
 **Безопасность:** обе операции двигают деньги только `company↔state.treasury` →
 drift=0; не читают rng → детерминизм. Новое поле `Company.bribe_cooldowns`
-(default `{}`) не трогается экономикой. 5 новых тестов (`test_diplomacy`):
+(default `{}`) не трогается экономикой. 6 новых тестов (`test_diplomacy`):
 conservation+rep+cooldown, cooldown-block, no-funds-block, citizenship
-flag+conservation, low-rep-block.
+flag+conservation, low-rep-block, citizenship penalizes bystander states (-10).
 
-Всего теперь **41 тест** (5+2+5+4+4+4+4+8+5), все зелёные, drift=0.0000 на
+Всего теперь **42 теста** (5+2+5+4+4+4+4+8+6), все зелёные, drift=0.0000 на
 365-day sim, 5 wars + 5 peaces + 61 incidents за год.
 
 ---

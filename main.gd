@@ -24,7 +24,7 @@ const SPEED_DPS: Array[int] = [0, 4, 16, 60]
 # computed in ui/game_ui.gd::_rebuild_diplo_panel — keep the two in sync if you
 # retune. Bribes scale with how hostile the state is; citizenship is a flat fee.
 const BRIBE_BASE_COST: float = 500.0
-const BRIBE_REP_GAIN: float = 20.0
+const BRIBE_REP_GAIN: float = 10.0
 const BRIBE_COOLDOWN_WEEKS: int = 4
 const CITIZENSHIP_COST: float = 5000.0
 const CITIZENSHIP_REP_THRESHOLD: float = 50.0
@@ -352,7 +352,9 @@ func bribe_state(state_id: String) -> void:
 # Apply for citizenship with a state you're in good standing with (rep > 50).
 # Flat naturalization fee; money -> state.treasury (conserved). Sets the ship's
 # flag_state so it flies the new colours — this changes which ports it can dock
-# at during wars (see ShipsTick._can_dock). No rep change (minimal variant).
+# at during wars (see ShipsTick._can_dock). Defection penalty: every other state
+# (not the new flag, not the old one) loses 10 rep — switching sides is a real
+# diplomatic rupture, not a free flag-swap. No money moves on the penalty.
 func apply_citizenship(state_id: String) -> void:
 	var st: State = WorldState.get_state(state_id)
 	if st == null:
@@ -374,7 +376,13 @@ func apply_citizenship(state_id: String) -> void:
 	st.treasury += CITIZENSHIP_COST
 	var old_flag: String = ship.flag_state
 	ship.flag_state = state_id
-	EventBus.message.emit("citizenship: %s -> %s (-%.0f)" % [old_flag, st.name, CITIZENSHIP_COST])
+	# Defection penalty: bystander states (not the new flag, not the old flag)
+	# each lose 10 rep. No money moves here, so drift stays 0.
+	for other in WorldState.states:
+		if other.id == state_id or other.id == old_flag:
+			continue
+		WorldState.adjust_player_rep(other.id, -10.0)
+	EventBus.message.emit("citizenship: %s -> %s (-%.0f, others -10 rep)" % [old_flag, st.name, CITIZENSHIP_COST])
 
 # Read-only queries the UI panels use for layout.
 func player_dock_town_id() -> String:

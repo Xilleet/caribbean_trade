@@ -612,7 +612,7 @@ bilateral state relations + player reputation с государствами и
   `data/relations.json`, `simulation/systems/war_system.gd`,
   `Ship.flag_state`, 8 тестов. 5 wars + 5 peaces + 61 incidents за 365 дней.
 player agency: bribes (cost scales с negative rep, 4-week
-  per-state cooldown, +5 rep) + citizenship (rep>+50, cost 5000, меняет
+  per-state cooldown, +10 rep) + citizenship (rep>+50, cost 5000, меняет
   flag_state, -10 rep с другими states). Новая Diplomacy panel в UI
   (4 строки state+rep+Bribe+Citizenship). Окно расширено 1280×720 → 1440×900,
   правая панель 560 → 640. 6 новых тестов.
