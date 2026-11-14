@@ -19,6 +19,11 @@ var last_day_money: float = 0.0
 # the 4-week bribe cooldown in the Diplomacy panel and main.bribe_state. Empty
 # by default (no bribes yet); not read by the economy or any existing test.
 var bribe_cooldowns: Dictionary = {}
+# Price memory — last-seen per-port prices, used by AIBrain (AI
+# ships) and the player's planning view. Initialised in WorldState.build_world
+# with a day-0 snapshot of every port (the "starting rumour"); refreshed on
+# dock by ShipsTick. Nullable only before build_world runs.
+var memory: PriceMemory = null
 
 func _init(p_id: String, p_name: String, p_money: float, p_is_ai: bool = false) -> void:
 	id = p_id

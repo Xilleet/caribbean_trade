@@ -623,7 +623,15 @@ relations matrix UI: в Diplomacy panel добавлен read-only block — act
   строка + 6 state↔state pair rows color-coded (red⚔/orange≤−40/yellow<0/
   green≥0); weekly refresh (`day%7==0`, выровнен с `WarSystem.roll_weekly`).
   +1 тест (`relations_matrix_contract`, test_wars 11 всего).
+AIBrain: AI ships price-responsive (visited-memory info model) — каждый company
+  имеет PriceMemory (town→good→{price,day}, stale >10d, day-0 "starting rumour"
+  seed всех портов); AIBrain.decide → {trade,dest}: carrying→best sell port,
+  empty→best arbitrage from memory, fallback→explore nearest stale port.
+  Deterministic (no rng → bit-stable), trades via execute_buy/sell (drift=0).
+  Player ship keeps fixed route; player UI _render_town non-docked показывает
+  memory estimates + staleness. +4 теста в test_ai_traders (8 всего). AI P/L
+  365d: ~−423 → +8766 (fixed routes были убыточны, brain прибыльный).
 
-Все 45 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700,
+Все 49 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700,
 15 городов на карте, 4 государства с дипломатией + player agency (bribe +
 citizenship), окно 1440×900.

@@ -210,6 +210,17 @@ func build_world() -> void:
 		ships.append(ai_ship)
 		companies.append(ai_co)
 
+	# Give every company a price memory seeded with day-0 prices for
+	# every port (the "starting rumour" — captains begin with common knowledge
+	# of Caribbean prices that ages out as the world moves under them). Refreshed
+	# on dock by ShipsTick; AI ships read it via AIBrain, the player reads it in
+	# the planning view (_render_town). Both plan from the same stale-info model
+	# rather than omniscient live prices.
+	for c in companies:
+		c.memory = PriceMemory.new()
+		for t in towns:
+			c.memory.snapshot(t, 0)
+
 	built = true
 
 func get_town(id: String) -> Town:

@@ -544,18 +544,35 @@ func _render_town() -> void:
 		# The trade panel renders the per-good rows; the read-only table is hidden.
 		_town_body.text = ""
 		return
+	# A distant town shows the player's PRICE MEMORY only — the
+	# last-seen price per good with a staleness tag — not live stock/demand. A
+	# captain knows which goods a port trades (common knowledge) but only what
+	# they last paid/heard; dock to refresh. Real prices + stock show only at
+	# the docked town (the trade panel above). Symmetric with the AI's info
+	# model (AIBrain reads the same memory), so scouting is what beats a rival.
 	var lines := PackedStringArray()
-	lines.append("pop %d   fund $%.0f   sat %d%%" %
-			[int(t.total_population()), t.market.fund, int(t.satisfaction * 100.0)])
-	lines.append("%-11s %7s %7s %7s %7s" % ["good", "stock", "price", "dem", "sup"])
+	var co: Company = WorldState.get_company("player")
+	var mem: PriceMemory = co.memory if co != null else null
+	var day: int = SimulationClock.day
+	var fresh_count: int = 0
 	var ids: Array = t.market.entries.keys()
 	ids.sort()
 	for gid in ids:
-		var e: Market.Entry = t.market.entries[gid]
-		if e.stock < 0.01 and e.daily_demand < 0.01 and e.daily_supply < 0.01:
-			continue
-		lines.append("%-11s %7.1f %7.2f %7.1f %7.1f" %
-				[String(gid), e.stock, e.current_price, e.daily_demand, e.daily_supply])
+		var est: Dictionary = mem.estimate(t.id, String(gid), day) if mem != null else {}
+		if est.is_empty():
+			continue   # never seen a price for this good here -> don't list it
+		var da: int = int(est["days_ago"])
+		if da <= PriceMemory.MEMORY_DAYS:
+			fresh_count += 1
+		var tag: String = "now" if da == 0 else ("%dd" % da)
+		if da > PriceMemory.MEMORY_DAYS:
+			tag += "*"   # stale — older than MEMORY_DAYS, trust at your risk
+		lines.append("%-11s %7.2f  %s" % [String(gid), float(est["price"]), tag])
+	if lines.is_empty():
+		lines.append("(no price memory for %s — sail there to learn)" % t.name)
+	else:
+		lines.insert(0, "%-11s %7s  %s" % ["good", "price", "last saw"])
+		lines.insert(0, "(memory, %d fresh — dock to refresh; * = stale)" % fresh_count)
 	_town_body.text = "\n".join(lines)
 
 func _render_ship() -> void:

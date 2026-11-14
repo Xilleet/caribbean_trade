@@ -755,7 +755,7 @@ drift=0; не читают rng → детерминизм. Новое поле `
 conservation+rep+cooldown, cooldown-block, no-funds-block, citizenship
 flag+conservation, low-rep-block, citizenship penalizes bystander states (-10).
 
-Всего теперь **45 тестов** (5+2+5+4+4+4+4+11+6), все зелёные, drift=0.0000 на
+Всего теперь **49 тестов** (5+2+5+4+4+4+8+11+6), все зелёные, drift=0.0000 на
 365-day sim, 5 wars + 5 peaces + 61 incidents за год.
 
 ### War tariffs — wartime customs surcharge on foreign traders
@@ -813,6 +813,53 @@ iff id в каком-то active war, `at_war(a,b)` bilateral согласова
 1080px, green (rep≥0 rows + green pairs) 5381px, gray-green "(no active wars)"
 6396px, red 0 (войн нет в свежем мире). 8s clean run без runtime-ошибок.
 drift=0, editor-pass чист, 9/9 сцен PASS.
+
+### AIBrain — price-responsive AI ships (visited-memory info model)
+
+**Проблема.** AI корабли плавали по хардкод-маршрутам из `data/routes.json`
+(фикс. loop stops) + `execute_route` гнал predefined buy/sell rules вслепую по
+цене. AI не реагировал на цены — торговал один и тот же good в одних и тех же
+портах, даже если цены давно ушли. На 365-day sim AI терял деньги (~−423 total).
+
+**Info model (Option A — visited-memory, symmetric).** Каждый company имеет
+`PriceMemory` (`entities/price_memory.gd`): town→good→{price, day}. Обновляется
+на dock (snapshot реальных цен текущего порта). Stale >10 дней (`MEMORY_DAYS`).
+При `build_world` seed'ится day-0 snapshot'ом ВСЕХ портов ("starting rumour" —
+капитаны начинают с общим знанием карибских цен, которое устаревает со временем).
+Симметрично: AIBrain (AI) и player planning view читают одну memory — никто не
+omniscient. Скаутинг (посещение портов для обновления memory) — что бьёт rival.
+
+**AIBrain** (`simulation/systems/ai_brain.gd`): `decide(ship, company, town, day)
+→ {trade: StopRule|null, dest: town_id}`. Carrying → depart в port с max est
+sell price для top cargo good (или sell here если current real ≥ best est).
+Empty → best arbitrage (B,S,g) из memory (dockable filter по at_war), buy here
+если current=B иначе depart B; price_cap=est_sell×0.90 (10% margin). No
+arbitrage → explore: nearest stale/missing port (scout). Tie-breaks по id, no
+rng → детерминизм + bit-stable (war_rng/event_rng не тронуты). Trades идут
+через тот же `execute_buy/sell` (reuse StopRule) → money conserved, drift=0.
+
+**Скоуп:** AIBrain только для AI ships (`company.is_ai`). Player ship keeps fixed
+route (headless baseline + player strategy неизменна; profit меняется только
+через market-эффект умного AI). Player memory = UI planning aid (`_render_town`
+non-docked показывает last-seen prices + staleness "now"/"5d"/"12d*"; docked =
+real prices). Один decide, один trade, один depart per dock — без same-day loop.
+
+**Тесты (4 новых в test_ai_traders, 8/8):** `price_memory` (snapshot/estimate/
+staleness/unknown), `player_memory_seeded` (15/15 towns day-0), `ai_brain_carries
+_to_best_sell_port` (несёт sugar, remembered port_royal@90 → depart туда, не
+dump cheap), `ai_brain_explores_when_memory_thin` (memory=only home, empty →
+scout unknown port). + conservation (30d drift=0) и player+ai-share-market (14d)
+всё ещё PASS.
+
+**Измерение (365 дней, seed 1337, before AIBrain vs after):** drift=0 в обоих.
+Wars/events идентичны (5/5/61/0, 375 events = drought 91 / storm 35 / famine 249
+— AIBrain no-rng, bit-stable подтверждён). Determinism: player profit run#1 =
+run#2 = 13619.3 (identical). AI P/L резко лучше: Havana Sugar −216 → **+5845**,
+Santiago Metals −207 → **+3640**, Carib Produce 0 → −719. AI total ~−423 →
+**+8766** (fixed routes были убыточны, brain прибыльный). Player +13109 →
+**+13619** (+510; AI trades больше, цены сдвигают в пользу player's fixed route
+в этом seed). **Вывод:** AI теперь реально умный + прибыльный, sim invariants
+(drift / determinism / bit-stability) сохранены.
 
 ---
 

@@ -9,10 +9,12 @@ extends RefCounted
 
 var trade_system: TradeSystem
 var market_system: MarketSystem
+var ai_brain: AIBrain   # Price-responsive decision engine for AI ships
 
 func _init(p_trade: TradeSystem, p_market: MarketSystem) -> void:
 	trade_system = p_trade
 	market_system = p_market
+	ai_brain = AIBrain.new()
 
 func run() -> void:
 	for ship in WorldState.ships:
@@ -87,6 +89,10 @@ func _step_ship(ship: Ship) -> void:
 				return
 			ship.state = "docked"
 			ship.days_sailing = 0
+			# A docked captain sees today's real prices — snapshot them
+			# into the company's price memory (refreshes this port, others age on).
+			if company.memory != null:
+				company.memory.snapshot(dest, SimulationClock.day)
 			EventBus.message.emit("%s docked at %s" % [ship.id, dest.name])
 			# Stage 4: tell the controller we reached a port so it can auto-pause
 			# for the player to trade. Auto ships keep going regardless.
@@ -102,12 +108,45 @@ func _step_ship(ship: Ship) -> void:
 	# manually trades and clicks "Отплыть".
 	if ship.state == "docked" and ship.current_town_id != "" and ship.auto_trade:
 		var town: Town = WorldState.get_town(ship.current_town_id)
-		var route: TradeRoute = WorldState.get_route(ship.route_id)
-		if town != null and route != null:
-			trade_system.execute_route(ship, company, town, route)
-		if route != null and not route.stops.is_empty():
-			ship.destination_id = route.next_stop_after(ship.current_town_id)
-			ship.state = "sailing"
+		if town == null:
+			return
+		if company.is_ai:
+			_ai_step(ship, company, town)
+		else:
+			# Player ship auto-trades its fixed route (headless sim, or before the
+			# player takes manual control). AIBrain is AI-only — the player's
+			# "brain" is the human reading the planning view.
+			var route: TradeRoute = WorldState.get_route(ship.route_id)
+			if route != null:
+				trade_system.execute_route(ship, company, town, route)
+			if route != null and not route.stops.is_empty():
+				ship.destination_id = route.next_stop_after(ship.current_town_id)
+				ship.state = "sailing"
+
+# AI ships decide via AIBrain (price-responsive arbitrage from the
+# company's PriceMemory) instead of a fixed data-route loop. The brain returns
+# {trade: StopRule|null, dest: town_id}; we execute the trade here (if any)
+# through the same money-conserving execute_buy/sell the player's route uses,
+# then sail to dest. One decide, one trade, one depart per dock.
+func _ai_step(ship: Ship, company: Company, town: Town) -> void:
+	var plan: Dictionary = ai_brain.decide(ship, company, town, SimulationClock.day)
+	var trade: Variant = plan.get("trade", null)
+	if trade != null:
+		var rule: TradeRoute.StopRule = trade
+		if rule.action == "buy":
+			trade_system.execute_buy(ship, company, town, rule)
+		else:
+			trade_system.execute_sell(ship, company, town, rule)
+	var dest: String = String(plan.get("dest", ""))
+	if dest != "" and dest != town.id:
+		ship.destination_id = dest
+		ship.state = "sailing"
+	elif trade != null:
+		# traded but the brain gave no/own port as dest — sail to a scout port so
+		# we don't re-trade here next tick (avoids same-port loops).
+		ship.destination_id = ai_brain.explore_dest(company.memory, town, SimulationClock.day)
+		ship.state = "sailing"
+	# else: no trade + no dest → stay docked, re-decide next day (rare).
 
 func _start_route(ship: Ship) -> void:
 	var route: TradeRoute = WorldState.get_route(ship.route_id)
