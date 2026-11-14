@@ -601,6 +601,11 @@ state-triggered. Три архетипа:
   ship trades; пиратские нападения как roll per sailing day (cargo loss +
   repair upkeep); `Ship.armed` field для будущего armed escort. 8 новых тестов
   (test_states + test_pirates), всего 28.
+расширение карты с 5 до 15 городов (data-only): +Havana, San Juan,
+  Santo Domingo, Cartagena (Spain); +Bridgetown, Nassau (England);
+  +Cap-Français, Fort-de-France (France); +Willemstad, Paramaribo
+  (Netherlands — впервые на карте). Glyphs в `ascii_map.gd::_town_glyph`
+  расширены с 5 до 15 уникальных букв (T P C G S H J D X R N K F W M).
 
-Все 28 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=299 100
-(включая 155k state treasuries).
+Все 28 тестов зелёные, drift=0.0000 на 365-day sim, `total_money` start=528 700
+(включая 155k state treasuries + 229k от 10 новых городов), 15 городов на карте.

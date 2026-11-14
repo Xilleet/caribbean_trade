@@ -137,5 +137,285 @@
       "bread": 12
     },
     "state": "france"
+  },
+  "havana": {
+    "name": "Havana",
+    "state": "spain",
+    "coords": [
+      200,
+      240
+    ],
+    "population": {
+      "poor": 1500,
+      "middle": 400,
+      "rich": 100
+    },
+    "population_money": 30000,
+    "industries": [
+      "sugar_plantation",
+      "tobacco_plantation",
+      "distillery",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "sugar": 50,
+      "tobacco": 30,
+      "rum": 25,
+      "corn": 30,
+      "bread": 20
+    }
+  },
+  "san_juan": {
+    "name": "San Juan",
+    "state": "spain",
+    "coords": [
+      430,
+      220
+    ],
+    "population": {
+      "poor": 800,
+      "middle": 200,
+      "rich": 40
+    },
+    "population_money": 18000,
+    "industries": [
+      "sugar_plantation",
+      "cotton_plantation",
+      "smithy",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "sugar": 30,
+      "cotton": 25,
+      "metal_goods": 10,
+      "corn": 25,
+      "bread": 18
+    }
+  },
+  "santo_domingo": {
+    "name": "Santo Domingo",
+    "state": "spain",
+    "coords": [
+      400,
+      270
+    ],
+    "population": {
+      "poor": 1200,
+      "middle": 350,
+      "rich": 80
+    },
+    "population_money": 25000,
+    "industries": [
+      "sugar_plantation",
+      "tobacco_plantation",
+      "lumber_camp",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "sugar": 40,
+      "tobacco": 25,
+      "wood": 35,
+      "corn": 30,
+      "bread": 22
+    }
+  },
+  "cartagena": {
+    "name": "Cartagena",
+    "state": "spain",
+    "coords": [
+      180,
+      360
+    ],
+    "population": {
+      "poor": 900,
+      "middle": 250,
+      "rich": 50
+    },
+    "population_money": 20000,
+    "industries": [
+      "mine",
+      "smithy",
+      "lumber_camp",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "metal": 60,
+      "metal_goods": 15,
+      "wood": 25,
+      "corn": 25,
+      "bread": 18
+    }
+  },
+  "bridgetown": {
+    "name": "Bridgetown",
+    "state": "england",
+    "coords": [
+      490,
+      340
+    ],
+    "population": {
+      "poor": 500,
+      "middle": 120,
+      "rich": 30
+    },
+    "population_money": 10000,
+    "industries": [
+      "sugar_plantation",
+      "cotton_plantation",
+      "distillery",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "sugar": 35,
+      "cotton": 20,
+      "rum": 18,
+      "corn": 22,
+      "bread": 15
+    }
+  },
+  "nassau": {
+    "name": "Nassau",
+    "state": "england",
+    "coords": [
+      350,
+      180
+    ],
+    "population": {
+      "poor": 400,
+      "middle": 100,
+      "rich": 20
+    },
+    "population_money": 8000,
+    "industries": [
+      "lumber_camp",
+      "orchard",
+      "hemp_farm",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "wood": 40,
+      "fruits": 25,
+      "hemp": 20,
+      "corn": 20,
+      "bread": 12
+    }
+  },
+  "cap_francais": {
+    "name": "Cap-Français",
+    "state": "france",
+    "coords": [
+      380,
+      240
+    ],
+    "population": {
+      "poor": 600,
+      "middle": 150,
+      "rich": 30
+    },
+    "population_money": 13000,
+    "industries": [
+      "sugar_plantation",
+      "tobacco_plantation",
+      "distillery",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "sugar": 35,
+      "tobacco": 22,
+      "rum": 18,
+      "corn": 22,
+      "bread": 15
+    }
+  },
+  "fort_de_france": {
+    "name": "Fort-de-France",
+    "state": "france",
+    "coords": [
+      470,
+      310
+    ],
+    "population": {
+      "poor": 350,
+      "middle": 90,
+      "rich": 15
+    },
+    "population_money": 7000,
+    "industries": [
+      "sugar_plantation",
+      "orchard",
+      "distillery",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "sugar": 25,
+      "fruits": 20,
+      "rum": 12,
+      "corn": 18,
+      "bread": 10
+    }
+  },
+  "willemstad": {
+    "name": "Willemstad",
+    "state": "netherlands",
+    "coords": [
+      250,
+      380
+    ],
+    "population": {
+      "poor": 700,
+      "middle": 180,
+      "rich": 40
+    },
+    "population_money": 15000,
+    "industries": [
+      "smithy",
+      "textile_mill",
+      "lumber_camp",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "metal_goods": 18,
+      "textiles": 22,
+      "wood": 30,
+      "corn": 22,
+      "bread": 16
+    }
+  },
+  "paramaribo": {
+    "name": "Paramaribo",
+    "state": "netherlands",
+    "coords": [
+      140,
+      390
+    ],
+    "population": {
+      "poor": 450,
+      "middle": 100,
+      "rich": 25
+    },
+    "population_money": 9000,
+    "industries": [
+      "cotton_plantation",
+      "hemp_farm",
+      "lumber_camp",
+      "corn_farm",
+      "bakery"
+    ],
+    "initial_stock": {
+      "cotton": 28,
+      "hemp": 22,
+      "wood": 32,
+      "corn": 20,
+      "bread": 14
+    }
   }
 }

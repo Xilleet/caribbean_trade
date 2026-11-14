@@ -141,13 +141,25 @@ func _set_cell(cx: int, cy: int, ch: String) -> void:
 	_grid[cy] = row.substr(0, cx) + ch + row.substr(cx + 1)
 
 func _town_glyph(town_id: String) -> String:
-	# One uppercase letter per town; chosen so all five are distinct on the grid.
+	# One uppercase letter per town; 15 distinct glyphs. B/b is reserved for
+	# the player ship, so no town uses B. Letters chosen to be unique even when
+	# town names share an initial (San Juan/Santo Domingo/Santiago all start S).
 	match town_id:
 		"tortuga": return "T"
 		"port_royal": return "P"
 		"cayman": return "C"
 		"gibara": return "G"
 		"santiago": return "S"
+		"havana": return "H"
+		"san_juan": return "J"        # J for Juan (S collides with santiago)
+		"santo_domingo": return "D"   # D for Domingo
+		"cartagena": return "X"       # X (C collides with cayman)
+		"bridgetown": return "R"      # R (B reserved for player ship)
+		"nassau": return "N"
+		"cap_francais": return "K"    # K for Cap (C collides)
+		"fort_de_france": return "F"
+		"willemstad": return "W"
+		"paramaribo": return "M"      # M for Maribo (P collides with port_royal)
 		_: return town_id.substr(0, 1).to_upper()
 
 func _draw() -> void:
@@ -176,7 +188,8 @@ func _draw() -> void:
 			draw_string(_font, Vector2(px, py), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, col)
 	# Legend row below the grid.
 	var ly: float = off.y + float(GH) * _cell_h + ascent
-	var legend := "towns T P C G S   you b/B   rival a/A   · = your route   [click a town]"
+	# Stage D1: 15 towns now — list the letters in three groups for the legend.
+	var legend := "towns T P C G S H J D X R N K F W M   you b/B   rival a/A   · = your route   [click a town]"
 	draw_string(_font, Vector2(off.x, ly), legend, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Color(0.55, 0.6, 0.6))
 	# Subtle border.
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.2, 0.3, 0.4, 0.6), false, 1.0)

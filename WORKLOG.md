@@ -458,5 +458,120 @@ Carib Produce единственная выросла — её маршрут (c
 Всего теперь **28 тестов** (5+2+5+4+4+4+4), все зелёные, drift=0.0000 на
 365-day sim.
 
+---
+
+## Расширение карты (5 → 15 городов)
+
+
+Data-only срез: добавлено 10 новых реальных карибских городов в
+`data/towns.json`, ни одной правки GDScript-логики (только `_town_glyph` и
+легенда в `ui/ascii_map.gd` для новых букв). Источник — Port Royale 3 Wiki
+(README §1.1): города и товары оттуда, балансировка своя.
+
+### D1.1. Новые города (10 шт.)
+
+| ID | Название | State | Координаты | Население (poor/mid/rich) | Индустрии |
+|---|---|---|---|---|---|
+| `havana` | Havana | spain | [200, 240] | 1500/400/100 | sugar_plantation, tobacco_plantation, distillery, corn_farm, bakery |
+| `san_juan` | San Juan | spain | [430, 220] | 800/200/40 | sugar_plantation, cotton_plantation, smithy, corn_farm, bakery |
+| `santo_domingo` | Santo Domingo | spain | [400, 270] | 1200/350/80 | sugar_plantation, tobacco_plantation, lumber_camp, corn_farm, bakery |
+| `cartagena` | Cartagena | spain | [180, 360] | 900/250/50 | mine, smithy, lumber_camp, corn_farm, bakery |
+| `bridgetown` | Bridgetown | england | [490, 340] | 500/120/30 | sugar_plantation, cotton_plantation, distillery, corn_farm, bakery |
+| `nassau` | Nassau | england | [350, 180] | 400/100/20 | lumber_camp, orchard, hemp_farm, corn_farm, bakery |
+| `cap_francais` | Cap-Français | france | [380, 240] | 600/150/30 | sugar_plantation, tobacco_plantation, distillery, corn_farm, bakery |
+| `fort_de_france` | Fort-de-France | france | [470, 310] | 350/90/15 | sugar_plantation, orchard, distillery, corn_farm, bakery |
+| `willemstad` | Willemstad | netherlands | [250, 380] | 700/180/40 | smithy, textile_mill, lumber_camp, corn_farm, bakery |
+| `paramaribo` | Paramaribo | netherlands | [140, 390] | 450/100/25 | cotton_plantation, hemp_farm, lumber_camp, corn_farm, bakery |
+
+Все координаты в существующих bounds карты (x∈[100,540], y∈[160,400]) —
+`AsciiMap` рендерит без код-изменений.
+
+### D1.2. Распределение по государствам (было → стало)
+
+| State | Было (5 towns) | Стало (15 towns) |
+|---|---|---|
+| Spain | 2 (gibara, santiago) | **6** (+ havana, san_juan, santo_domingo, cartagena) |
+| England | 2 (cayman, port_royal) | **4** (+ bridgetown, nassau) |
+| France | 1 (tortuga) | **3** (+ cap_francais, fort_de_france) |
+| Netherlands | 0 | **2** (willemstad, paramaribo) — впервые на карте |
+
+### D1.3. Glyphs в `ascii_map.gd::_town_glyph`
+
+С 5 городов на 15: добавлены 10 новых односимвольных глифов, выбираемых так,
+чтобы избежать коллизий (San Juan/Santo Domingo/Santiago все начинаются на S;
+Cayman/Cartagena/Cap-Français все на C; Bridgetown на B — зарезервировано под
+player ship).
+
+| Town | Glyph | Почему |
+|---|---|---|
+| tortuga | T | существующий |
+| port_royal | P | существующий |
+| cayman | C | существующий |
+| gibara | G | существующий |
+| santiago | S | существующий |
+| havana | H | первая буква |
+| san_juan | **J** | J for Juan (S занят santiago) |
+| santo_domingo | **D** | D for Domingo |
+| cartagena | **X** | C занят cayman |
+| bridgetown | **R** | B зарезервирован под player ship |
+| nassau | N | первая буква |
+| cap_francais | **K** | C занят cayman |
+| fort_de_france | F | первая буква |
+| willemstad | W | первая буква |
+| paramaribo | **M** | P занят port_royal |
+
+Легенда внизу карты обновлена: `towns T P C G S H J D X R N K F W M`.
+
+### D1.4. Эффект на sim (365 дней, seed = 1337)
+
+| Метрика | A1+A2 (5 towns) | D1 (15 towns) |
+|---|---|---|
+| `total_money` start | 299 100 | **528 700** (+229 600 from new towns' pop_money + industry default_money) |
+| drift | 0.0000 | 0.0000 |
+| Player profit | +12 782 | +13 108 (+2.5%, чуть выросло от новых рынков рядом) |
+| AI Havana Sugar P/L | +12 517 | +11 828 |
+| AI Santiago Metals P/L | +6 277 | +6 830 |
+| AI Carib Produce P/L | +11 816 | +12 116 |
+| Events fired | 113 | **319** (drought=82 storm=43 famine=194) |
+
+Famine подскочил с 49 до 194 — естественный эффект: 15 городов вместо 5, у
+каждого свой bread/corn stock, больше шансов на глубокий дефицит ниже
+`trigger_stock_ratio=0.2`. Это candidate на D1.1 retune (поднять ratio до 0.25
+или понизить crop farm capacity в крупных городах). Пока оставляем как есть —
+это не баг, а реалистичная обратная связь.
+
+### D1.5. Тесты
+
+Все 28 тестов остаются зелёными, без правок:
+- `test_ai_traders::map_draws_all_ships` — проверяет наличие `B` игрока и ≥3
+  `A` конкурентов на сетке. С 15 городами корабли всё равно докятся в свои
+  home-порты (tortuga/gibara/cayman/santiago), глифы не перезаписываются
+  новыми town letters.
+- `test_events::events_deterministic` — 19=19 за 30 дней (было 2 с 5 городами,
+  теперь 19: больше городов → больше famine триггеров). Детерминизм держится.
+- `test_pirates::pirate_attacks_deterministic` — 2 прогона = одинаковые
+  lifetime_buy/sell. `pirate_rng` сидится от `world_seed + 91137`, не зависит
+  от количества городов.
+
+### D1.6. Что НЕ сделано
+
+- **AI routes** не обновлены под новые города — 3 AI компании и игрок
+  продолжают свои 4 существующих маршрута (`player_default`,
+  `ai_havana_loop`, `ai_metals_loop`, `ai_produce_loop`). Новые города
+  доступны игроку через Stage 4 manual route editor (`+ Add`), но AI их
+  игнорирует. Когда захочешь — добавим `ai_willemstad_textiles`,
+  `ai_cartagena_metals` и пр. (data-only в `data/routes.json`).
+- **Famine retune под 15 городов** — famine подскочил до 194/год, что много.
+  Можно поднять `trigger_stock_ratio` 0.2 → 0.25 или понизить crop farm
+  capacity в крупных городах. Оставлено на D1.1 если потребуется.
+- **Историческая точность координат** — координаты абстрактные в существующих
+  bounds карты, а не реальные lat/lon. Существующие 5 городов тоже
+  абстрактные. это отдельная правка
+  координат всех 15 городов.
+
+Всего теперь **28 тестов** (5+2+5+4+4+4+4), все зелёные, drift=0.0000 на
+365-day sim, 15 городов на карте.
+
+
 
 
