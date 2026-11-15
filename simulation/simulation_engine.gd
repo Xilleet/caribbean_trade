@@ -55,6 +55,10 @@ func step_day() -> void:
 	# tomorrow. (New events are added in step_week, called just below on the
 	# week boundary.)
 	event_system.decay_daily()
+	# Stage A3.2: daily war countdown cap (wars end after 60-180 days even if
+	# the weekly PROB_PEACE roll never fires). After event decay so the order
+	# mirrors event expiry.
+	war_system.tick_daily()
 	SimulationClock.advance_day()
 	EventBus.day_advanced.emit(SimulationClock.day)
 	if SimulationClock.day_of_week() == 0:

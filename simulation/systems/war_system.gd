@@ -6,7 +6,7 @@ extends RefCounted
 ## with each state + pirates ([member WorldState.player_rep]). Each week rolls
 ## for: relation/rep decay toward 0 (0.3 pt/week); diplomatic incidents (±20 to
 ## a random state pair, prob 0.15/week, 70% hostile); war declarations (when
-## relation < -60, prob 0.4/week); peace treaties (prob 0.2/week). Wars block
+## relation < -60, prob 0.4/week); peace — early via weekly PROB_PEACE=0.2 roll, or war ends after a 60-180 day countdown cap (tick_daily). Wars block
 ## port access for
 ## ships flying the enemy flag (see ShipsTick._can_dock); peace resets
 ## relations to -20.
@@ -21,7 +21,9 @@ extends RefCounted
 
 const WAR_THRESHOLD: float = -60.0        # below this, war can be declared
 const PROB_WAR_DECLARATION: float = 0.4   # per week per eligible pair
-const PROB_PEACE: float = 0.2             # per week per active war
+const PROB_PEACE: float = 0.2             # per week per active war (early peace)
+const WAR_MIN_DAYS: int = 60             # countdown cap lower bound, set at declaration
+const WAR_MAX_DAYS: int = 180            # countdown cap upper bound — war ends by this many days
 const PROB_INCIDENT: float = 0.15        # per week per state pair
 const INCIDENT_DELTA: float = 20.0       # was 10 — bigger swings push pairs past threshold faster
 const PEACE_RELATION: float = -20.0      # relations reset here on peace
@@ -40,7 +42,7 @@ class ActiveWar:
         extends RefCounted
         var state_a: String
         var state_b: String
-        var days_left: int = -1   # indefinite; peace comes via weekly roll, not countdown
+        var days_left: int = -1   # set to randi_range(60,180) at declaration; -1 = indefinite (tests). Daily countdown in tick_daily.
 
 
 func _init(p_rng: RandomNumberGenerator) -> void:
@@ -107,7 +109,7 @@ func _declare_war(a: String, b: String) -> void:
         var w := ActiveWar.new()
         w.state_a = a
         w.state_b = b
-        w.days_left = -1
+        w.days_left = rng.randi_range(WAR_MIN_DAYS, WAR_MAX_DAYS)
         WorldState.active_wars.append(w)
         wars_declared += 1
         var sa: State = WorldState.get_state(a)
@@ -133,6 +135,25 @@ func _make_peace(w) -> void:
         var an: String = sa.name if sa != null else w.state_a
         var bn: String = sb.name if sb != null else w.state_b
         EventBus.message.emit("✌ Мир: %s и %s подписали мирный договор" % [an, bn])
+
+# Daily countdown cap (Stage A3.2). Wars with days_left > 0 tick down once per
+# day; at 0 the war ends via _make_peace (max-duration exhaustion). Wars with
+# days_left == -1 (indefinite — set by tests) are left to the weekly
+# PROB_PEACE roll. Called from SimulationEngine.step_day AFTER
+# EventSystem.decay_daily, so a war declared this week starts counting
+# tomorrow. Uses NO rng — deterministic given the declared duration.
+func tick_daily() -> void:
+        var still: Array = []
+        for w in WorldState.active_wars:
+                if w.days_left > 0:
+                        w.days_left -= 1
+                        if w.days_left <= 0:
+                                _make_peace(w)
+                        else:
+                                still.append(w)
+                else:
+                        still.append(w)
+        WorldState.active_wars = still
 
 # All C(N,2) state pairs, deterministic order (states array order).
 func _all_state_pairs() -> Array:

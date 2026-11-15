@@ -31,6 +31,7 @@ func _ready() -> void:
 	ok = ok and test_war_tariff_exempts_own_citizen()
 	ok = ok and test_relations_matrix_contract()
 	ok = ok and test_peace_resets_relations()
+	ok = ok and test_war_countdown_cap()
 	ok = ok and test_pirate_attack_lowers_pirate_rep()
 	print("\n=== %s ===" % ("ALL STAGE-A3 TESTS PASSED" if ok else "SOME STAGE-A3 TESTS FAILED"))
 	get_tree().quit(0 if ok else 1)
@@ -325,6 +326,30 @@ func test_peace_resets_relations() -> bool:
 	var passed: bool = peace_signed and abs(relation_after - (-20.0)) < 0.001
 	_report("peace_resets_relations", passed,
 		"peace_signed=%s relation_after=%.1f (expect -20.0)" %
+		[peace_signed, relation_after])
+	return passed
+
+func test_war_countdown_cap() -> bool:
+	WorldState.build_world()
+	# Short countdown (5 days) to exercise the daily-decrement + peace-at-0
+	# path without waiting the real 60..180-day range.
+	var w := WarSystem.ActiveWar.new()
+	w.state_a = "spain"
+	w.state_b = "england"
+	w.days_left = 5
+	WorldState.active_wars.append(w)
+	WorldState.set_relation("spain", "england", -90.0)
+	var ws := WarSystem.new(WorldState.war_rng)
+	# Drive ONLY the daily countdown — never call _roll_peace, so peace here is
+	# unambiguously from the countdown cap, not the weekly stochastic roll.
+	for _i in 7:
+		ws.tick_daily()
+	var peace_signed: bool = not WorldState.at_war("spain", "england")
+	var relation_after: float = WorldState.get_relation("spain", "england")
+	# Peace via countdown resets relations to -20 (same _make_peace path).
+	var passed: bool = peace_signed and abs(relation_after - (-20.0)) < 0.001
+	_report("war_countdown_cap", passed,
+		"peace_signed=%s (countdown 5d -> peace at 5th tick) relation_after=%.1f (expect -20.0)" %
 		[peace_signed, relation_after])
 	return passed
 
