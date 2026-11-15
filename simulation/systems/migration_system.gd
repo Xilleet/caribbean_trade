@@ -31,13 +31,21 @@ func compute_migration(towns: Array) -> void:
 			# Push: unemployment + low wages + low satisfaction.
 			var unemp: float = 1.0 - (p.employed_count / p.count) if p.count > 0.0 else 1.0
 			var wage: float = float(t.wage_rate.get(p.profession, 1.0))
-			var sat: float = t.satisfaction
+			var sat: float = p.satisfaction   # B3: per-Pop, not town aggregate
 			# push ∈ [0, 1]: high when unemployment is high, wages low, satisfaction low.
 			var push: float = unemp * (1.0 - wage / 2.0) * (1.0 - sat)
 			var wanting: float = p.count * push * MIGRATION_RATE
 			if wanting < 0.5:
 				continue   # too few to bother
 			# Pull: find best destination (highest wage * satisfaction for this profession).
+			# TODO B3.1: check if destination has DEMAND for this profession
+			# (industries requiring it). If no demand → don't migrate there
+			# (would just be unemployed again). Stub — currently checks wage * sat
+			# which indirectly reflects demand (high wage = high demand).
+			# Future: explicit check via town.get_available_workers(prof) vs
+			# industry target_workers — if demand exists, migrate; if not, stay.
+			# This also connects to C2/C8 (enterprise expansion): if player
+			# builds a new smithy in a town, smiths from other towns migrate there.
 			var best_dest: String = ""
 			var best_score: float = wage * sat   # only move if destination is better
 			for other in towns:

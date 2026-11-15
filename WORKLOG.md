@@ -1370,6 +1370,95 @@ income (B3 — Pop.savings → ship company).
 
 ---
 
+
+## B3 — per-Pop savings, SoL, satisfaction, ticket cost
+
+**Коммит:** (pending push)
+
+Final piece of the audit's population model: per-Pop wealth, per-Pop
+satisfaction, per-Pop growth, ticket cost for migration.
+
+### Что изменено
+
+**`entities/town.gd`:**
+- `population_money` → read-only getter (sum of Pop.savings)
+- `satisfaction` → read-only getter (weighted avg of Pop.satisfaction by count)
+- NEW `distribute_population_money(total)` — poor 20%, middle 30%, rich 50%
+- NEW `add_to_pop(prof, amount)` — wages to specific Pop
+- NEW `add_to_all_pops(amount)` — dividends/upkeep to all Pops (fallback: market.fund if no Pops)
+- NEW `spend_from_pop(prof, amount) -> float` — consumption from Pop savings
+
+**`core/world_state.gd`:** `t.population_money = X` → `t.distribute_population_money(X)`
+
+**`simulation/systems/finance_system.gd`:**
+- `charge_wages`: `t.population_money += wages` → `t.add_to_pop(prof, wages)`
+- `_route_dividend`: `t.population_money += payout` → `t.add_to_all_pops(payout)`
+
+**`simulation/systems/consumption_system.gd`:** rewritten for per-Pop consumption:
+- Each Pop buys from its OWN savings (not aggregate town pool)
+- Goods bought in PRIORITY order (staples first for all Pops)
+- SoL = qty_bought / qty_desired per Pop
+- `Pop.satisfaction = SoL` (was 1.0 stub)
+- `town.satisfaction` = computed weighted avg (was set directly)
+- TODO B3.1 stub: per-profession baskets (sailors buy rum, servants don't)
+
+**`simulation/systems/population_system.gd`:** per-Pop growth:
+- Each Pop grows/shrinks based on its OWN satisfaction
+- High-SoL Pops grow (+1%/week if sat > 0.8)
+- Low-SoL Pops shrink (-2%/week if sat < 0.5)
+- No longer uses `set_class_count` — each Pop independent
+
+**`simulation/systems/migration_system.gd`:**
+- Push factor uses `Pop.satisfaction` (not town aggregate)
+- TODO B3.1 stub: profession-aware destination (check if dest has demand for profession — connects to C2/C8 enterprise expansion)
+
+**`simulation/ships_tick.gd`:** ticket cost for migration:
+- Passengers pay from Pop.savings to ship company
+- 0.5 per person per estimated sailing day (distance-based)
+- Pops that can't afford ticket → fewer board
+- Packet lines earn income from tickets
+
+**Tests updated:**
+- `test_ownership.gd` — added Pops for dividend routing
+- `test_migration.gd` — rewritten for per-Pop satisfaction/savings
+
+### Метрики 365-day sim (seed 1337)
+
+```
+Money: start=438700 end=438700 drift=0.0000 ✓
+Population: total=9691 (was 8136 → +1555 growth!)
+avg_satisfaction: 0.835 (was 0.779 → +0.056, big improvement)
+Player profit: +13408 (was +11553 → +1855)
+Events: 154 (famine=0 — per-Pop consumption prevents aggregate famine)
+```
+
+**Per-Pop satisfaction (Havana, day 364):**
+- laborer: count=563, sat=0.846, employed=40 (thriving — wages + food)
+- artisan: count=67, sat=0.656, employed=17 (moderate)
+- smith: count=30, sat=0.656, employed=0 (no income → depleting savings)
+- planter: count=24, sat=0.595, employed=0 (shrinking — no income source)
+- official: count=12, sat=0.595, employed=0 (same)
+
+**Wealth inequality visible:** employed Pops (sat 0.846) thrive, unemployed
+rich Pops (sat 0.595) shrink. Per-Pop growth works — laborer grew from ~399
+to 563, artisan shrank from ~117 to 67.
+
+**Packet lines:** Eastern +8557 (profitable!), Northern/Southern still
+struggle but ticket income helps. Carib Produce went bankrupt (3500→5).
+
+### TODO (documented in code)
+
+- B3.1: per-profession consumption baskets (sailors buy rum, servants don't)
+  — stub in consumption_system.gd, test first then expand
+- B3.1: profession-aware migration destination (check if dest has demand
+  for profession — stub in migration_system.gd, connects to C2/C8 enterprise
+  expansion: player builds smithy → smiths migrate there)
+- Non-industrial professions need income sources (sailor → ship crews,
+  merchant → trade margins, planter → dividends, official → taxes,
+  financier → interest). Without income, rich Pops deplete savings and shrink.
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

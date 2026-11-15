@@ -40,7 +40,7 @@ func _step_ship(ship: Ship) -> void:
 		return
 	company.money -= base_upkeep
 	if upkeep_town != null:
-		upkeep_town.population_money += base_upkeep
+		upkeep_town.add_to_all_pops(base_upkeep)
 	# the player's daily upkeep is a silent wallet drain — log it so the
 	# player sees where the money went (answers "money just decreases"). AI
 	# companies stay quiet: their books are off-screen and logging 3 rivals/day
@@ -50,7 +50,7 @@ func _step_ship(ship: Ship) -> void:
 	if storm_extra > 0.0 and company.money >= storm_extra:
 		company.money -= storm_extra
 		if upkeep_town != null:
-			upkeep_town.population_money += storm_extra
+			upkeep_town.add_to_all_pops(storm_extra)
 		if ship.owner_id == "player":
 			EventBus.message.emit("storm repair -%.1f (%s)" % [storm_extra, ship.id])
 
@@ -239,6 +239,32 @@ func _board_passengers(ship: Ship, town: Town) -> void:
 		if board <= 0.0:
 			remaining.append(entry)
 			continue
+		# Stage B3: ticket cost. Passengers pay from their savings to the
+		# ship's company. 0.5 per person per estimated sailing day (distance
+		# based — rough estimate using ship speed). Gives packet lines income.
+		var dest_town: Town = WorldState.get_town(dest)
+		var ticket_per_person: float = 0.5   # base rate per person
+		if dest_town != null:
+			var dist: float = town.coords.distance_to(dest_town.coords)
+			var sail_days: float = ceil(dist / ship.speed) if ship.speed > 0.0 else 1.0
+			ticket_per_person = 0.5 * sail_days
+		# Pop pays from savings; if can't afford full ticket, fewer board.
+		for p in town.pops:
+			if p.profession == prof:
+				var max_affordable: float = p.savings / ticket_per_person if ticket_per_person > 0.0 else board
+				board = min(board, max_affordable)
+				if board <= 0.0:
+					break
+				var ticket_total: float = board * ticket_per_person
+				p.savings -= ticket_total
+				# Ship company earns the ticket revenue.
+				var company: Company = _owner_of(ship)
+				if company != null:
+					company.money += ticket_total
+				break
+		if board <= 0.0:
+			remaining.append(entry)
+			continue
 		# Remove boarded count from origin Pop.
 		for p in town.pops:
 			if p.profession == prof:
@@ -327,7 +353,7 @@ func _roll_pirate_attack(ship: Ship, company: Company, local_town: Town) -> void
 	if extra_upkeep > 0.0 and company.money >= extra_upkeep:
 		company.money -= extra_upkeep
 		if local_town != null:
-			local_town.population_money += extra_upkeep
+			local_town.add_to_all_pops(extra_upkeep)
 	var msg: String = "Пираты атаковали %s" % ship.id
 	if lost_qty > 0.0:
 		msg += ": -%.1f %s" % [lost_qty, lost_good]

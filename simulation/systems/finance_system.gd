@@ -30,7 +30,8 @@ func charge_wages(t: Town, recipes: Dictionary) -> void:
 		var wages: float = wages_daily * util
 		var maint: float = maint_daily * util
 		ind.money -= wages + maint
-		t.population_money += wages
+		# Stage B3: wages go to the Pop of matching profession (not aggregate).
+		t.add_to_pop(prof, wages)
 		t.market.fund += maint
 		ind.last_wages = wages
 		ind.last_maintenance = maint
@@ -81,35 +82,32 @@ func distribute_profits(t: Town, recipes: Dictionary) -> void:
 func _route_dividend(t: Town, ind: Industry, payout: float) -> void:
 	var oid: String = ind.owner_id
 	if oid == "" or oid.begins_with("town:"):
-		t.population_money += payout
+		# Stage B3: dividends to all Pops proportionally (town-owned = public).
+		t.add_to_all_pops(payout)
 	elif oid == "player":
 		var c: Company = WorldState.get_company("player")
 		if c != null:
 			c.money += payout
 		else:
-			t.population_money += payout
+			t.add_to_all_pops(payout)
 	elif oid.begins_with("ai:"):
 		var co_id: String = oid.substr(3)
 		var c: Company = WorldState.get_company(co_id)
 		if c != null:
 			c.money += payout
 		else:
-			t.population_money += payout
+			t.add_to_all_pops(payout)
 	elif oid.begins_with("state:"):
 		var sid: String = oid.substr(6)
 		var st: State = WorldState.get_state(sid)
 		if st != null:
 			st.treasury += payout
 		else:
-			t.population_money += payout
+			t.add_to_all_pops(payout)
 	elif oid.begins_with("entrepreneur:"):
-		# C1 minimal: no entrepreneur entity exists yet. Dividends fall
-		# back to town.population so money stays in circulation and
-		# conservation holds. Real routing arrives when Entrepreneur
-		# class is added (later stages — see README roadmap C2/C8).
-		t.population_money += payout
+		t.add_to_all_pops(payout)
 	else:
-		t.population_money += payout
+		t.add_to_all_pops(payout)
 
 # Generic account transfer, used by Stage 2 trade (player <-> market.fund).
 # Stage 1 leaves it as a documented no-op so the contract is visible.

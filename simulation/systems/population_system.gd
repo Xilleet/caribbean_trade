@@ -28,20 +28,24 @@ func calculate_satisfaction(t: Town) -> float:
 	return t.satisfaction
 
 func update_population(t: Town, _rng: RandomNumberGenerator) -> void:
-	var sat: float = t.satisfaction
-	var growth: float
-	if sat > 0.8:
-		growth = 0.01
-	elif sat < 0.5:
-		growth = -0.02
-	else:
-		growth = (sat - 0.65) * 0.02
-	# Stage B1: poor/middle/rich are read-only getters (sum Pop.count by
-	# stratum). set_class_count distributes proportionally, preserving
-	# profession ratios within each stratum.
-	t.set_class_count("poor", max(0.0, t.poor * (1.0 + growth)))
-	t.set_class_count("middle", max(0.0, t.middle * (1.0 + growth * 1.1)))
-	t.set_class_count("rich", max(0.0, t.rich * (1.0 + growth * 0.5)))
+	# Stage B3: per-Pop growth based on each Pop's own satisfaction (SoL).
+	# High-SoL Pops grow (boom + immigration), low-SoL Pops shrink (famine
+	# + emigration). Each Pop has its own growth rate — employed artisan
+	# with high SoL grows, unemployed laborer with low SoL shrinks.
+	for p in t.pops:
+		if p.count <= 0.0:
+			continue
+		var sat: float = p.satisfaction
+		var growth: float
+		if sat > 0.8:
+			growth = 0.01
+		elif sat < 0.5:
+			growth = -0.02
+		else:
+			growth = (sat - 0.65) * 0.02
+		# Apply growth to this Pop's count directly (no set_class_count —
+		# each Pop grows independently, ratios within stratum can change).
+		p.count = max(0.0, p.count * (1.0 + growth))
 
 ## Stage B2: profession-based employment. Four phases:
 ##   1. Each industry sets target_workers based on weekly_profit (same logic

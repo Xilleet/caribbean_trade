@@ -30,7 +30,9 @@ func _ready() -> void:
 func test_dividend_routes_to_town_by_default() -> bool:
 	var fin := FinanceSystem.new()
 	var t := Town.new("t_own", "OwnerTown")
-	t.population_money = 0.0
+	# B3: need a Pop for dividends to route to (population_money is now sum of Pop.savings)
+	if t.pops.is_empty():
+		t.pops.append(Pop.new("p_test", t.id, "poor", "laborer", 10.0))
 	# A lumber camp with way more money than its reserve — guaranteed payout.
 	var ind := Industry.new("i1", "lumber_camp", "t_own", 8.0, 5000.0, "town:t_own")
 	t.industries.append(ind)
@@ -57,7 +59,9 @@ func test_dividend_routes_to_player_when_owned() -> bool:
 
 	var fin := FinanceSystem.new()
 	var t := Town.new("t_pl", "PlayerOwnsTown")
-	t.population_money = 0.0
+	# B3: need a Pop for dividends to route to (population_money is now sum of Pop.savings)
+	if t.pops.is_empty():
+		t.pops.append(Pop.new("p_test", t.id, "poor", "laborer", 10.0))
 	WorldState.towns.append(t)
 	# Industry owned by player; load it with money > reserve.
 	var ind := Industry.new("i2", "smithy", "t_pl", 10.0, 8000.0, "player")
@@ -96,7 +100,9 @@ func test_unknown_owner_falls_back_to_population() -> bool:
 	WorldState.reset()
 	var fin := FinanceSystem.new()
 	var t := Town.new("t_unk", "UnknownOwnerTown")
-	t.population_money = 0.0
+	# B3: need a Pop for dividends to route to (population_money is now sum of Pop.savings)
+	if t.pops.is_empty():
+		t.pops.append(Pop.new("p_test", t.id, "poor", "laborer", 10.0))
 	WorldState.towns.append(t)
 	var ind := Industry.new("i3", "bakery", "t_unk", 10.0, 6000.0, "entrepreneur:foo")
 	t.industries.append(ind)

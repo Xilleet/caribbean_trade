@@ -1,38 +1,38 @@
 {
   "sloop": {
-    "name": "Sloop",
-    "speed": 18.0,
-    "cargo_capacity": 60,
-    "passenger_capacity": 10,
-    "upkeep_daily": 8.0,
-    "cost": 1500,
-    "armed": 0
+	"name": "Sloop",
+	"speed": 18.0,
+	"cargo_capacity": 60,
+	"passenger_capacity": 10,
+	"upkeep_daily": 8.0,
+	"cost": 1500,
+	"armed": 0
   },
   "brigantine": {
-    "name": "Brigantine",
-    "speed": 14.0,
-    "cargo_capacity": 140,
-    "passenger_capacity": 20,
-    "upkeep_daily": 16.0,
-    "cost": 4200,
-    "armed": 0
+	"name": "Brigantine",
+	"speed": 14.0,
+	"cargo_capacity": 140,
+	"passenger_capacity": 20,
+	"upkeep_daily": 16.0,
+	"cost": 4200,
+	"armed": 0
   },
   "fluyt": {
-    "name": "Fluyt",
-    "speed": 11.0,
-    "cargo_capacity": 260,
-    "passenger_capacity": 30,
-    "upkeep_daily": 26.0,
-    "cost": 8500,
-    "armed": 0
+	"name": "Fluyt",
+	"speed": 11.0,
+	"cargo_capacity": 260,
+	"passenger_capacity": 30,
+	"upkeep_daily": 26.0,
+	"cost": 8500,
+	"armed": 0
   },
   "packet": {
-    "name": "Packet",
-    "speed": 16.0,
-    "cargo_capacity": 30,
-    "passenger_capacity": 80,
-    "upkeep_daily": 12.0,
-    "cost": 3000,
-    "armed": 0
+	"name": "Packet",
+	"speed": 16.0,
+	"cargo_capacity": 30,
+	"passenger_capacity": 80,
+	"upkeep_daily": 12.0,
+	"cost": 3000,
+	"armed": 0
   }
 }

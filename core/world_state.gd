@@ -140,7 +140,7 @@ func build_world() -> void:
 		for p in t.pops:
 			p.count *= 1.0 + 0.20 * sin(float(world_seed) + float(ti) * 7.0 + float(prof_idx))
 			prof_idx += 1
-		t.population_money = float(td["population_money"])
+		t.distribute_population_money(float(td["population_money"]))
 
 		# Every town gets a market entry for every good (price exists everywhere,
 		# stock defaults to 0 unless initial_stock overrides it).
