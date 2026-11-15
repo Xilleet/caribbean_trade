@@ -872,3 +872,101 @@ panel расширяется до нескольких строк. Не лома
 в графе в README Roadmap. Фаворит аудита (предприятия + рынок труда +
 производственные цепочки = C1 + C8 + B2 + C7) — связывающее ядро, его
 реализация имеет приоритет перед расширениями.
+
+---
+
+
+## 16. C1 (minimal) — собственность предприятий и routing дивидендов
+
+C1 minimal — первое внедрение audit-favourite «предприятия + рынок труда +
+производственные цепочки». В этом срезе **только** ownership и routing
+дивидендов; покупка/продажа/строительство — отдельный срез C2.
+
+### 16.1. Что добавлено
+
+- **`Industry.owner_id: String`** (`entities/industry.gd`). Формат:
+  `"town:<id>"` (дефолт, сохраняет Stage 1–6 поведение), `"player"`,
+  `"ai:<co_id>"`, `"state:<sid>"`, `"entrepreneur:<id>"`. Пустая строка
+  fallback к town. Опциональный 6-й параметр `_init` — существующие 5-arg
+  вызовы (`test_market.gd:85`, `world_state.gd:142`) не ломаются.
+- **`default_owner` stub** в `data/industries.json` для всех 12 шаблонов
+  (`"town"`). Поле парсится в `world_state.gd:140`; `"town"` резолвится в
+  `"town:<town_id>"` в момент инстанциации; другие значения pass-through.
+  Верхний уровень JSON содержит `_default_owner_doc` — строка-документация
+  назначения поля (безопасна: `industries_db` lookup'ится только по ключам
+  из `town.industries`, и `_default_owner_doc` там нет). Заглушка явно
+  оставлена для будущего C2/C8, где шаблоны смогут стартовать с другим
+  владельцем (например, `"ai:havana_sugar"` для sugar plantation).
+- **`FinanceSystem._route_dividend(t, ind, payout)`** — новый private метод
+  в `simulation/systems/finance_system.gd`. Заменил прямое
+  `t.population_money += payout` в `distribute_profits`. Routing:
+  - `""` / `"town:*"` → `t.population_money` (baseline)
+  - `"player"` → `WorldState.get_company("player").money`
+  - `"ai:<co_id>"` → `WorldState.get_company(co_id).money`
+  - `"state:<sid>"` → `WorldState.get_state(sid).treasury`
+  - `"entrepreneur:*"` → fallback к `t.population_money` (entrepreneur
+    entity не смоделирован — реальный routing приедет с позже)
+  - anything else → fallback к `t.population_money` (safe default)
+
+  Использует `WorldState` autoload напрямую — так уже делают
+  `production_system`, `consumption_system`, `trade_system`, `war_system`,
+  `ai_brain` (grep'ом проверено).
+- **`world_state.gd:135-147`** — чтение `default_owner` из шаблона и
+  резолв `"town"` → `"town:<town_id>"` в момент создания Industry.
+- **`tests/test_ownership.gd` + `.tscn`** — 3 новых теста:
+  `dividend_routes_to_town_by_default` (baseline сохранился), 
+  `dividend_routes_to_player_when_owned` (player получает payout, drift=0),
+  `unknown_owner_falls_back_to_population` (entrepreneur fallback, drift=0).
+
+### 16.2. Почему conservation сохранился
+
+`WorldState.total_money()` уже суммирует `companies[i].money`,
+`states[i].treasury`, `towns[i].population_money`, `towns[i].treasury`,
+`towns[i].market.fund`, `towns[i].industries[j].money`. Routing дивиденда
+переносит `payout` из `industry.money` в один из этих счётов — каждый
+целевой счёт в сумме, поэтому drift=0 в каждой ветке.
+
+Верификация: `test_dividend_routes_to_player_when_owned` и
+`test_unknown_owner_falls_back_to_population` оба проверяют `drift < 0.001`
+через `WorldState.total_money()` before/after `distribute_profits`. 365-day
+headless sim: `start=528700.0 end=528700.0 drift=0.0000`, player profit
++13619.3 (совпадает с baseline до C1 — поведение не изменилось, потому что
+все industries в `build_world` получают `owner_id="town:<id>"`).
+
+### 16.3. Тесты после C1
+
+Всего **52 теста (49 + 3)**, все зелёные:
+- test_market 5, test_trade 2, test_manual_trade 5, test_ai_traders 8,
+  test_events 4, test_states 6, test_pirates 4, test_wars 11,
+  test_diplomacy 4, **test_ownership 3 (NEW)**.
+
+### 16.4. Что НЕ сделано в этом срезе (явно)
+
+- **Buy/sell industries** — нет UI, нет API `player_buy_industry`. Это C2.
+- **Build new industries** — нет. Это C2.
+- **`book_value` field** — нет. Появится в C2 когда нужна будет цена
+  покупки.
+- **`capacity_level`, `wear`, `expansion_cost`** — нет. Это C8.
+- **`entrepreneur` entity** — нет. `owner_id="entrepreneur:*"` fallback к
+  population; реальный routing приедет с entrepreneur классом (позже).
+- **UI** — нет UI для ownership; в `game_ui.gd` панель industries не
+  показывает owner_id. Это C2 — вместе с buy/sell UI.
+
+### 16.5. Зачем нужен `default_owner` stub в JSON сейчас
+
+Поле добавлено как заглушка с явным TODO-объяснением
+(`_default_owner_doc` в верхнем уровне JSON + комментарий в
+`world_state.gd:135-139`). Причины:
+
+1. **Data explicit.** Когда в C2/C8 добавится entrepreneur/AI-владения,
+   шаблон уже сможет указать `"default_owner": "ai:havana_sugar"` — без
+   правок кода, только данных.
+2. **Code-data contract.** Парсинг `default_owner` уже написан и
+   протестирован косвенно (через `test_dividend_routes_to_town_by_default`
+   + 365-day sim с owner_id="town:*"). Когда придёт C2, не нужно будет
+   трогать `world_state.gd` — только JSON.
+3. **Stub без функциональности — safe.** Все 12 шаблонов сейчас
+   `"town"`, что эквивалентно старому поведению (повседневные операции
+   не трогают owner_id, только `distribute_profits` его читает).
+
+---

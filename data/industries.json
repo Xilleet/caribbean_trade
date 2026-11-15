@@ -1,14 +1,15 @@
 {
-  "lumber_camp":         {"recipe_id":"lumber_camp","default_workers":8,"default_money":1200},
-  "mine":                {"recipe_id":"mine","default_workers":12,"default_money":1600},
-  "cotton_plantation":   {"recipe_id":"cotton_plantation","default_workers":10,"default_money":1400},
-  "hemp_farm":           {"recipe_id":"hemp_farm","default_workers":8,"default_money":1200},
-  "sugar_plantation":    {"recipe_id":"sugar_plantation","default_workers":12,"default_money":1500},
-  "orchard":             {"recipe_id":"orchard","default_workers":6,"default_money":1000},
-  "corn_farm":           {"recipe_id":"corn_farm","default_workers":14,"default_money":1600},
-  "tobacco_plantation":  {"recipe_id":"tobacco_plantation","default_workers":10,"default_money":1400},
-  "distillery":          {"recipe_id":"distillery","default_workers":8,"default_money":1600},
-  "textile_mill":        {"recipe_id":"textile_mill","default_workers":10,"default_money":1800},
-  "smithy":              {"recipe_id":"smithy","default_workers":10,"default_money":2000},
-  "bakery":              {"recipe_id":"bakery","default_workers":10,"default_money":1500}
+  "_default_owner_doc": "Stage C1 (minimal) stub. default_owner specifies who owns industries instantiated from this template at world build. Currently always 'town' (resolved to 'town:<town_id>' in world_state.gd). Future C2/C8 will allow 'player', 'ai:<co_id>', 'state:<sid>', 'entrepreneur:<id>'. Parsed by world_state.gd:140; only 'town' has special resolution, other values pass through as-is.",
+  "lumber_camp":         {"recipe_id":"lumber_camp","default_workers":8,"default_money":1200,"default_owner":"town"},
+  "mine":                {"recipe_id":"mine","default_workers":12,"default_money":1600,"default_owner":"town"},
+  "cotton_plantation":   {"recipe_id":"cotton_plantation","default_workers":10,"default_money":1400,"default_owner":"town"},
+  "hemp_farm":           {"recipe_id":"hemp_farm","default_workers":8,"default_money":1200,"default_owner":"town"},
+  "sugar_plantation":    {"recipe_id":"sugar_plantation","default_workers":12,"default_money":1500,"default_owner":"town"},
+  "orchard":             {"recipe_id":"orchard","default_workers":6,"default_money":1000,"default_owner":"town"},
+  "corn_farm":           {"recipe_id":"corn_farm","default_workers":14,"default_money":1600,"default_owner":"town"},
+  "tobacco_plantation":  {"recipe_id":"tobacco_plantation","default_workers":10,"default_money":1400,"default_owner":"town"},
+  "distillery":          {"recipe_id":"distillery","default_workers":8,"default_money":1600,"default_owner":"town"},
+  "textile_mill":        {"recipe_id":"textile_mill","default_workers":10,"default_money":1800,"default_owner":"town"},
+  "smithy":              {"recipe_id":"smithy","default_workers":10,"default_money":2000,"default_owner":"town"},
+  "bakery":              {"recipe_id":"bakery","default_workers":10,"default_money":1500,"default_owner":"town"}
 }

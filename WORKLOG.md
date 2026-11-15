@@ -863,6 +863,81 @@ Santiago Metals −207 → **+3640**, Carib Produce 0 → −719. AI total ~−4
 
 ---
 
+## C1 (minimal) — собственность предприятий + routing дивидендов
+
+**Коммит:** (pending push)
+
+Первый срез по внешнему аудиту (README §1.1.1, §5.5, §5.8; Concept §15, §16).
+Audit-favourite «предприятия + рынок труда + производственные цепочки» —
+начинаем с enterprises. **Только** ownership и routing дивидендов; buy/sell
+и build — отдельный срез C2.
+
+### Что изменено
+
+- `entities/industry.gd` — добавлен `var owner_id: String = ""` и
+  опциональный 6-й параметр `_init` (`p_owner_id`). Существующие 5-arg
+  вызовы (`test_market.gd:85`, `world_state.gd:142`) не ломаются.
+- `simulation/systems/finance_system.gd` — `distribute_profits` теперь
+  вызывает новый private `_route_dividend(t, ind, payout)`, который
+  маршрутизирует payout по `ind.owner_id`:
+  `""` / `"town:*"` → `t.population_money` (baseline);
+  `"player"` → `WorldState.get_company("player").money`;
+  `"ai:<co_id>"` → `WorldState.get_company(co_id).money`;
+  `"state:<sid>"` → `WorldState.get_state(sid).treasury`;
+  `"entrepreneur:*"` / unknown → fallback к `t.population_money`.
+  Использует `WorldState` autoload напрямую (как production/consumption/
+  trade/war/ai_brain systems).
+- `core/world_state.gd:135-147` — `build_world` теперь читает
+  `default_owner` из шаблона (`"town"` по умолчанию), резолвит `"town"` →
+  `"town:<town_id>"` в момент создания Industry, другие значения
+  pass-through.
+- `data/industries.json` — добавлен `"default_owner": "town"` во все 12
+  шаблонов (stub для будущего C2/C8) и `_default_owner_doc` строка в
+  верхнем уровне JSON с объяснением поля (безопасна: industries_db lookup
+  только по ключам из town.industries).
+- `tests/test_ownership.gd` + `.tscn` — новый, 3 теста:
+  `dividend_routes_to_town_by_default`, `dividend_routes_to_player_when_owned`
+  (drift=0 verified via WorldState.total_money before/after),
+  `unknown_owner_falls_back_to_population` (drift=0 verified).
+
+### Тесты
+
+**52 теста (49 + 3)**, все PASS:
+- test_market 5, test_trade 2, test_manual_trade 5, test_ai_traders 8,
+  test_events 4, test_states 6, test_pirates 4, test_wars 11,
+  test_diplomacy 4, **test_ownership 3 (NEW)**.
+
+### Метрики (365 дней, seed 1337)
+
+```
+Money: start=528700.0 end=528700.0 drift=0.0000  ← conservation сохранён
+Player: 5000.0 -> 18619.3  profit=+13619.3       ← совпадает с baseline до C1
+AI Havana Sugar Co.: 3500.0 -> 9345.1  P/L=+5845.1
+AI Santiago Metals:  3500.0 -> 7139.9  P/L=+3639.9
+AI Carib Produce:    3500.0 -> 2781.3  P/L= -718.7
+Events: 375 (drought=91 storm=35 famine=249), still active=8
+Wars: declared=5, peaces=5, incidents=61, still active=0
+```
+
+Player profit +13619.3 идентичен baseline до C1 — потому что все industries в
+`build_world` получают `owner_id="town:<id>"` и routing дивидендов идёт в
+`t.population_money` как раньше. drift=0 сохранён потому что
+`WorldState.total_money()` уже включает `companies.money` + `states.treasury`
++ `towns.population_money` + `industries.money` — routing переносит payout из
+`industry.money` в один из этих счётов, каждый в сумме.
+
+### Что НЕ сделано (явно — для следующих срезов)
+
+- Buy/sell industries → C2.
+- Build new industries → C2.
+- `book_value` field → C2 (появится когда нужна цена покупки).
+- `capacity_level`, `wear`, `expansion_cost` → C8.
+- `entrepreneur` entity → позже; `owner_id="entrepreneur:*"` fallback к
+  population.
+- UI для ownership → C2 (вместе с buy/sell UI).
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

@@ -132,10 +132,18 @@ func build_world() -> void:
 		for i in range(inds.size()):
 			var ind_type: String = inds[i]
 			var tmpl: Dictionary = industries_db[ind_type]
+			# Stage C1 (minimal): default_owner from template — currently
+			# always "town" (stub for future C2/C8 where templates may
+			# specify "player", "ai:<co_id>", "state:<sid>", or
+			# "entrepreneur:<id>"). "town" is resolved to "town:<town_id>"
+			# at instantiation; other values are passed through as-is.
+			var default_owner_type: String = String(tmpl.get("default_owner", "town"))
+			var owner_id: String = "town:" + town_id if default_owner_type == "town" else default_owner_type
 			var ind := Industry.new(
 				"%s_%s_%d" % [town_id, ind_type, i],
 				tmpl["recipe_id"], town_id,
-				float(tmpl["default_workers"]), float(tmpl["default_money"]))
+				float(tmpl["default_workers"]), float(tmpl["default_money"]),
+				owner_id)
 			t.industries.append(ind)
 
 		towns.append(t)
