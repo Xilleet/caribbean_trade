@@ -36,6 +36,7 @@ func reset_daily_stats(t: Town) -> void:
 		ind.last_wages = 0.0
 		ind.last_maintenance = 0.0
 		ind.last_profit = 0.0
+		ind.last_rent = 0.0
 		ind.produced_batches = 0.0
 
 # Step 2 (plan): compute planned_batches, add input demand to the market.

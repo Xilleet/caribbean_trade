@@ -50,6 +50,8 @@ func run(t: Town) -> void:
 	for ind in t.industries:
 		ind.weekly_profit = ind.money - ind.money_start_of_week
 		ind.money_start_of_week = ind.money
+		# Stage 4: reset the weekly rent accumulator for the new week.
+		ind.weekly_rent = 0.0
 	finance_system.distribute_profits(t, recipes)
 	# Stage B3.2: passive investment income (rich 0.5%/wk, middle 0.1%/wk)
 	# drawn from market.fund → pop.savings. Conserved. Runs before population

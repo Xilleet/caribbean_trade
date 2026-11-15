@@ -138,6 +138,24 @@ func add_to_pop(prof: String, amount: float) -> void:
 			p.savings += amount
 			return
 
+## Stage 4 (land rent): credit [param amount] to the Pop of [param prof] if
+## present, otherwise route it to [param market.fund] (stays in circulation).
+## Returns the amount actually credited — always equal to [param amount],
+## because the market.fund fallback guarantees no money is lost when the
+## profession group is absent (e.g. a town whose planter Pop was demoted away
+## by social mobility). This is the drift-safe counterpart to [method add_to_pop],
+## which silently drops money when no matching Pop exists. Used by
+## FinanceSystem.charge_rent so the invariant "rent charged == rent credited"
+## always holds and WorldState.total_money is conserved (drift=0).
+func add_to_pop_or_fund(prof: String, amount: float) -> float:
+	for p in pops:
+		if p.profession == prof:
+			p.savings += amount
+			return amount
+	# No matching Pop — keep the money in circulation via market.fund.
+	market.fund += amount
+	return amount
+
 ## Stage B3: add money to ALL Pops proportionally by count.
 ## Used by dividends (town-owned industries pay to all residents)
 ## and ship upkeep (paid to local population).

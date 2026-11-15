@@ -35,7 +35,49 @@ func charge_wages(t: Town, recipes: Dictionary) -> void:
 		t.market.fund += maint
 		ind.last_wages = wages
 		ind.last_maintenance = maint
-		ind.last_profit = ind.last_revenue - ind.last_input_cost - wages - maint
+		# Stage 4: rent (set by charge_rent, which runs just before charge_wages
+		# in the daily tick) is subtracted as a production cost alongside wages.
+		ind.last_profit = ind.last_revenue - ind.last_input_cost - wages - maint - ind.last_rent
+
+## Stage 4 (land rent): crop-producing plantations pay rent to the local
+## planter Pop. Rent is a production cost (like wages/maintenance), deducted
+## BEFORE profit — it reflects the landowner's claim on the land the plantation
+## operates on, distinct from dividends (the owner's claim on the enterprise).
+## Rent = RENT_RATE × actual daily revenue ([param ind.last_revenue], set in
+## ProductionSystem.produce), so a drought or glut that cuts output also cuts
+## rent. Only the 6 agricultural CROP_GOODS pay rent; lumber_camp and mine are
+## extractive (no planter class, no land rent — their surplus stays in
+## dividends). Recipient: the town's planter Pop (aggregated class income, not
+## per-capita; individual plots are not modelled). If the town has no planter
+## Pop, the rent flows to market.fund via Town.add_to_pop_or_fund, which
+## returns the credited amount — so "rent charged == rent credited" always
+## holds and WorldState.total_money is conserved (drift=0).
+## Money flow: industry.money -> planter Pop.savings (or market.fund).
+const RENT_RATE: float = 0.06   # 6% of actual crop revenue; tuned via sim
+
+func charge_rent(t: Town, recipes: Dictionary) -> void:
+	for ind in t.industries:
+		var recipe: Dictionary = recipes[ind.recipe_id]
+		if not _produces_crop(recipe):
+			ind.last_rent = 0.0
+			continue
+		var rent: float = ind.last_revenue * RENT_RATE
+		# Rent is junior to solvency: never push the industry below zero.
+		rent = min(rent, ind.money)
+		ind.money -= rent
+		ind.last_rent = rent
+		ind.weekly_rent += rent
+		t.add_to_pop_or_fund("planter", rent)
+
+## True if the recipe outputs a land-based agricultural crop — the same set
+## [param ProductionSystem.CROP_GOODS] marks as drought-affected. These (and
+## only these) pay land rent: corn/fruits/sugar_cane/tobacco/hemp/cotton.
+func _produces_crop(recipe: Dictionary) -> bool:
+	var outputs: Dictionary = recipe.get("outputs", {})
+	for good_id in outputs.keys():
+		if ProductionSystem.CROP_GOODS.has(String(good_id)):
+			return true
+	return false
 
 func calculate_profit(ind: Industry) -> float:
 	return ind.last_profit

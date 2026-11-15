@@ -7,6 +7,7 @@ extends RefCounted
 ##  3. industry buys inputs       (ProductionSystem.purchase_inputs)
 ##  4. production                 (ProductionSystem.produce)
 ##  5. population consumption     (ConsumptionSystem.consume_goods)
+##  5b. land rent                 (FinanceSystem.charge_rent — Stage 4)
 ##  6. wages & maintenance        (FinanceSystem.charge_wages)
 ##  7. recalculate prices         (MarketSystem.update_market)
 ## All transactions in a day use yesterday's closing price; prices update at
@@ -38,5 +39,8 @@ func run(t: Town) -> void:
 	production_system.purchase_inputs(t, recipes)
 	production_system.produce(t, recipes)
 	consumption_system.consume_goods(t)
+	# Stage 4: land rent on crop plantations (after consume_goods — same timing
+	# as wages; before charge_wages so rent is subtracted in last_profit).
+	finance_system.charge_rent(t, recipes)
 	finance_system.charge_wages(t, recipes)
 	market_system.update_market(t.market)

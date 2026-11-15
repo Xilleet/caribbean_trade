@@ -38,10 +38,18 @@ var last_input_cost: float = 0.0
 var last_wages: float = 0.0
 var last_maintenance: float = 0.0
 var last_profit: float = 0.0
+# Stage 4 (land rent): daily rent paid to the local planter Pop on
+# crop-producing plantations. Set by FinanceSystem.charge_rent (runs after
+# ProductionSystem.produce sets last_revenue, before charge_wages computes
+# last_profit so rent is subtracted as a production cost).
+var last_rent: float = 0.0
 
 # Weekly feedback.
 var money_start_of_week: float = 0.0
 var weekly_profit: float = 0.0
+# Stage 4: rent accumulated this week (sum of daily last_rent). Reset to 0
+# at the weekly book close in WeeklyTick.run (mirrors money_start_of_week).
+var weekly_rent: float = 0.0
 
 func _init(p_id: String, p_recipe_id: String, p_town_id: String, p_workers: float, p_money: float, p_owner_id: String = "") -> void:
 	id = p_id

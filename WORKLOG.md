@@ -1734,9 +1734,6 @@ Per-profession (Δcount vs day-0, Δsavings, avg SoL):
   домохозяйства, не безусловная выплата).
 - Stage 3: доход merchant через trade houses / посредничество (НЕ универсальная
   комиссия 1% — building-tied услуга).
-- Stage 4: доход planter через LAND RENT / собственность на землю (НЕ
-  перераспределение дивидендов crop-индустрий — это протащило бы модель
-  собственности, которой нет; все индустрии сейчас default_owner "town").
 - Stage 5: доход financier через credit/loans (связка с C4 bankruptcy+loans).
 - Stage 6: EconomicBuilding — обобщить Industry в типы зданий
   (production/commercial/administrative/financial/service), у каждого свои
@@ -1751,6 +1748,110 @@ Per-profession (Δcount vs day-0, Δsavings, avg SoL):
   перенастраивались — по согласованному подходу сначала наблюдаем; новые
   источники дохода заставили mobility стрелять (4 cooldowns) без изменения
   порогов.
+
+---
+
+## Stage 4 — земельная рента (planter income)
+
+**Коммит:** `<hash>` land rent on crop plantations → planter Pop
+
+Этап 4 плана v0.1 — доход planter через LAND RENT. Решение из обсуждения:
+рента = производственная затрата (как wages/maintenance), НЕ перераспределение
+дивидендов crop-индустрий. Дивиденды = ownership-притязание (город-владелец →
+всем), рента = land-притязание (плантатор-класс → planter Pop). Модель
+собственности НЕ протаскивается — Industry остаётся town-owned; землю
+плантатор-класс держит агрегированно (колониальный land grant, без реестра
+участков).
+
+### Что изменено
+
+- `FinanceSystem.charge_rent(t, recipes)` + `const RENT_RATE = 0.06` —
+  ежедневный шаг после `consume_goods`, до `charge_wages`. Для каждой
+  crop-плантации (6 `CROP_GOODS`: corn/fruits/sugar_cane/tobacco/hemp/cotton)
+  рента = `RENT_RATE × ind.last_revenue` (фактическая выручка дня, не
+  номинальная мощность — засуха/glut режут revenue → режут rent). `rent =
+  min(rent, ind.money)` — рента junior к solvency, не уводит в минус. Поток:
+  `industry.money → planter Pop.savings`. `lumber_camp`/`mine` исключены —
+  extractive, не сельхоз-земля (их surplus остаётся в дивидендах).
+- `Industry.last_rent` (daily) + `Industry.weekly_rent` (accumulator,
+  сбрасывается в `WeeklyTick.run`). `last_profit` в `charge_wages` теперь
+  `revenue − input − wages − maint − rent` (рента в формуле прибыли).
+- `Town.add_to_pop_or_fund(prof, amount) -> float` — drift-safe аналог
+  `add_to_pop`: кредитует planter Pop если есть, иначе → `market.fund`;
+  **возвращает зачисленную сумму**. `add_to_pop` — void и молча теряет деньги
+  если группы нет (B4 demotion planter→small_planter может убрать группу) —
+  это утечка drift. `add_to_pop_or_fund` её закрывает: инвариант
+  "rent charged == rent credited" выполняется всегда.
+- `ProductionSystem.reset_daily_stats` сбрасывает `last_rent`. `DailyTick.run`:
+  шаг 5b (между `consume_goods` и `charge_wages`); doc обновлён.
+
+### Тесты
+
+`tests/test_land_rent.gd` + `.tscn` — 7 PASS:
+1. `rent_equals_rate_on_crop_industry` — rent = 6% × revenue, industry −rent,
+   planter +rent, drift=0.
+2. `rent_zero_on_non_crop_industry` — lumber (wood) + bakery (bread) pay 0.
+3. `rent_zero_when_industry_idle` — `last_revenue=0` → rent 0.
+4. `rent_capped_at_money` — money < rent owed → capped, industry→0.
+5. `rent_falls_back_to_fund_when_no_planter` — нет planter Pop → rent →
+   `market.fund`, drift=0.
+6. `rent_subtracted_from_profit` — `last_profit = rev − wages − maint − rent`.
+7. `drift_zero_365days_planter_income_fixed` — full-world 365d, drift=0,
+   planter savings растут, planter SoL ≥ rich-ceiling ≥ financier, poor не
+   провалился.
+
+Все 16 существующих suites остаются PASS (test_market, test_trade, test_labour,
+test_mobility, test_profession_income, test_ownership, …). Регрессий нет.
+
+### Результаты (365-day sim, seed 1337)
+
+drift = -0.0000 (total_money 438700 константен).
+
+| stratum | profession | savings Δ | avgSoL |
+|---|---|---|---|
+| poor | laborer/sailor/servant | +400k each | 0.86 |
+| middle | artisan/smith/merchant/small_planter | +35-130k | 0.62 |
+| rich | planter | **+117945** | 0.503 |
+| rich | official | +38024 | 0.499 |
+| rich | financier | −3225 | 0.496 |
+
+**Planter income fixed:** savings растут (+117945) вместо истощения (было
+−5702 в Stage 1). Rent даёт плантерам ~36/чел/нед при потреблении 22/чел/нед —
+доход превышает потребление в 1.6×, накопление растёт. Poor SoL 0.864 (не
+провалился от потери dividend-share).
+
+### Нахождение: rich SoL ограничен supply-side, не доходом
+
+Все rich-профессии на потолке ~0.50 независимо от источника дохода (rent у
+planter, treasury salary у official, investment income у financier). SoL =
+`bought/desired`, покупка ограничена **market stock** (`market_system.buy`
+→ `min(want, stock, money/price)`). У плантера 149307 savings (~1642/чел) —
+это **74× недельного basket-cost**, деньги не лимит. Лимит — наличие
+люксов в рынке: processed goods (sugar/rum/textiles/metal_goods) производятся
+не во всех городах (cayman: только lumber/orchard/corn/bakery — нет
+sugar_mill/distillery/smithy/textile_mill). Basket включает эти товары в
+`desired_total`, но `market.has_good → false → bought=0` → SoL capped.
+
+Подтверждение: если убрать из rich-basket sugar+rum+textiles+metal_goods
+(оставить bread+fruits+tobacco), max SoL = 0.022/0.042 = 0.524 ≈ наблюдаемое
+0.503. Совпадение.
+
+**Вывод:** Stage 4 корректен (income работает, drift=0, no crash), но SoL
+плантатора НЕ поднимается до 0.75-0.85 — это отдельная supply-side проблема
+(production mix / market goods registration / B3.1 per-profession baskets).
+Никакая ставка ренты её не решит (доход уже 74× превышает потребность).
+Целевые 0.75-0.85 — ориентир, не условие (по согласованию: "не подгонять
+SoL любой ценой"). Ставка 6% остаётся — она избыточна для SoL, но безвредна
+(savings hoard в `total_money`, conserved). Можно снизить до 3-4% позже ради
+velocity, без эффекта на SoL.
+
+Financier (−3225, всё ещё depleting) — следующий на очередь (Stage 5 credit).
+
+### Conservation
+
+Поток ренты: `industry.money → planter Pop.savings` (или `market.fund`).
+Оба счёта в `WorldState.total_money` → drift=0 структурно. Юнит-тесты
+проверяют each-step conservation; full-world 365d — drift=-0.0000.
 
 ---
 
