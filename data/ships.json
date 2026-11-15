@@ -6,7 +6,8 @@
 	"passenger_capacity": 10,
 	"upkeep_daily": 8.0,
 	"cost": 1500,
-	"armed": 0
+	"armed": 0,
+	"crew_size": 12
   },
   "brigantine": {
 	"name": "Brigantine",
@@ -15,7 +16,8 @@
 	"passenger_capacity": 20,
 	"upkeep_daily": 16.0,
 	"cost": 4200,
-	"armed": 0
+	"armed": 0,
+	"crew_size": 20
   },
   "fluyt": {
 	"name": "Fluyt",
@@ -24,7 +26,8 @@
 	"passenger_capacity": 30,
 	"upkeep_daily": 26.0,
 	"cost": 8500,
-	"armed": 0
+	"armed": 0,
+	"crew_size": 30
   },
   "packet": {
 	"name": "Packet",
@@ -33,6 +36,7 @@
 	"passenger_capacity": 80,
 	"upkeep_daily": 12.0,
 	"cost": 3000,
-	"armed": 0
+	"armed": 0,
+	"crew_size": 15
   }
 }

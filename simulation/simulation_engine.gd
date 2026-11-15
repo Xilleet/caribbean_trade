@@ -12,6 +12,7 @@ var finance_system: FinanceSystem
 var population_system: PopulationSystem
 var migration_system: MigrationSystem          # Stage B2b
 var social_mobility_system: SocialMobilitySystem   # Stage B4
+var profession_income_system: ProfessionIncomeSystem   # Stage 1 (officials)
 var trade_system: TradeSystem
 var event_system: EventSystem
 var war_system: WarSystem               # Stage A3
@@ -27,13 +28,14 @@ func _init() -> void:
 	population_system = PopulationSystem.new()
 	migration_system = MigrationSystem.new()
 	social_mobility_system = SocialMobilitySystem.new()   # Stage B4
+	profession_income_system = ProfessionIncomeSystem.new()   # Stage 1 (officials)
 	trade_system = TradeSystem.new(market_system)
 	event_system = EventSystem.new(WorldState.event_rng, WorldState.events_db)
 	war_system = WarSystem.new(WorldState.war_rng)
 	daily_tick = DailyTick.new(market_system, production_system, consumption_system,
 			finance_system, WorldState.recipes)
 	weekly_tick = WeeklyTick.new(population_system, finance_system, migration_system,
-			social_mobility_system, WorldState.recipes, WorldState.rng)
+			social_mobility_system, profession_income_system, WorldState.recipes, WorldState.rng)
 	ships_tick = ShipsTick.new(trade_system, market_system)
 
 func step_day() -> void:

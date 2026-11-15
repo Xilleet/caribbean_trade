@@ -2,38 +2,45 @@ class_name WeeklyTick
 extends RefCounted
 
 ## One simulation week. Runs per-town: profit book → dividends → investment
-## income (B3.2) → population growth → social mobility (B4) → employment →
-## wage adjustment → migration. Stage B2b also runs migration pressure
-## computation across ALL towns (migration needs to see all towns to find
-## best destinations — so it's called once per week, not per-town).
+## income (B3.2) → officials' salary (Stage 1) → population growth → social
+## mobility (B4) → employment → wage adjustment → migration. Stage B2b also
+## runs migration pressure computation across ALL towns (migration needs to see
+## all towns to find best destinations — so it's called once per week, not
+## per-town). Officials' salary is likewise once-per-week (it iterates states,
+## not towns).
 ##
-## Weekly order (B4 design):
+## Weekly order (B4 + Stage 1 design):
 ##   1. distribute_profits (recirculate hoarded industry cash)
 ##   2. apply_investment_income  (B3.2: rich/middle earn on savings, from fund)
+##   2b. pay_officials           (Stage 1: state.treasury -> official Pops)
 ##   3. update_population        (demography — grows/shrinks by SoL)
 ##   4. update_social_mobility   (B4: profession + stratum transitions)
 ##   5. update_employment        (hire from the post-mobility profession mix)
 ##   6. adjust_wages             (wage_rate reacts to new demand/supply)
 ##   7. compute_migration        (once per week, across all towns)
-## Investment income runs before population growth so rich Pops' savings are
-## topped up for the week's daily consumption (keeps their SoL from
-## collapsing). Mobility runs before employment so freshly-promoted artisans
-## are immediately hireable by bakeries/distilleries in the same week.
+## Investment income + officials' salary run before population growth so rich
+## Pops' savings are topped up for the week's daily consumption (keeps their
+## SoL from collapsing). Mobility runs before employment so freshly-promoted
+## artisans are immediately hireable by bakeries/distilleries in the same week.
 
 var population_system: PopulationSystem
 var finance_system: FinanceSystem
 var migration_system: MigrationSystem
 var social_mobility_system: SocialMobilitySystem   # Stage B4
+var profession_income_system: ProfessionIncomeSystem   # Stage 1 (officials)
 var recipes: Dictionary
 var rng: RandomNumberGenerator
 var _migration_done_this_week: bool = false
+var _officials_done_this_week: bool = false
 
 func _init(p_pop: PopulationSystem, p_fin: FinanceSystem, p_mig: MigrationSystem,
-		p_mob: SocialMobilitySystem, p_recipes: Dictionary, p_rng: RandomNumberGenerator) -> void:
+		p_mob: SocialMobilitySystem, p_prof_income: ProfessionIncomeSystem,
+		p_recipes: Dictionary, p_rng: RandomNumberGenerator) -> void:
 	population_system = p_pop
 	finance_system = p_fin
 	migration_system = p_mig
 	social_mobility_system = p_mob
+	profession_income_system = p_prof_income
 	recipes = p_recipes
 	rng = p_rng
 
@@ -48,6 +55,14 @@ func run(t: Town) -> void:
 	# drawn from market.fund → pop.savings. Conserved. Runs before population
 	# growth so rich Pops don't deplete savings and shrink (the B3 problem).
 	population_system.apply_investment_income(t)
+	# Stage 1: state officials' salary. Per-state (iterates WorldState.states),
+	# so it runs once per week — guarded by _officials_done_this_week, like
+	# migration below. Runs after investment income and before population
+	# growth so officials' savings are topped up for the week's consumption
+	# (a broke state pays nothing → officials deplete savings → B4 demotes).
+	if not _officials_done_this_week:
+		profession_income_system.pay_officials()
+		_officials_done_this_week = true
 	population_system.update_population(t, rng)
 	# Stage B4: social mobility — promotion/demotion between professions and
 	# strata. Runs AFTER population growth and BEFORE employment so the new
@@ -66,3 +81,4 @@ func run(t: Town) -> void:
 ## Called by SimulationEngine at the end of step_week to reset the weekly flag.
 func reset_weekly() -> void:
 	_migration_done_this_week = false
+	_officials_done_this_week = false

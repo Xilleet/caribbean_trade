@@ -1639,6 +1639,121 @@ metal_goods) outpaces the 0.5%/wk return. Coherent with colonial dynamics.
 
 ---
 
+## Stage 1 — sailor crew wages + state officials' salary (profession income)
+
+B3.2+B4 выявило 7 профессий без собственного источника дохода (sailor, servant,
+merchant, small_planter, planter, official, financier) — они жили на общей
+дивидендной крошке (÷10) + investment income (rich/middle). По согласованному
+с пользователем 6-этапному плану Stage 1 добавляет два чистейших случая:
+моряков (платят корабли) и чиновников (платит государство). Этапы 2-6
+(servants, merchant trade-houses, planter land-rent, financier credit,
+EconomicBuilding) — далее.
+
+### Что изменено
+
+- `entities/ship.gd`: новые поля `home_port: String` (экипаж нанимается и
+  получает жалование здесь, НЕ в порту стоянки) + `crew_size: float`.
+- `data/ships.json`: `crew_size` на тип — sloop 12, brigantine 20, fluyt 30,
+  packet 15 (исторические age-of-sail экипажи).
+- `core/world_state.gd`: при создании корабля ставится `home_port`
+  (player → "tortuga", AI → его поле "home" из данных) + `crew_size` из данных.
+- `simulation/ships_tick.gd`: новая константа `CREW_WAGE_PER_DAY = 0.3`.
+  Роутинг upkeep изменён: существующий дебет `base_upkeep` делится —
+  `crew_wage = min(crew_size * CREW_WAGE_PER_DAY, base_upkeep)` кредитуется
+  sailor Pop'у города `home_port`; `port_services = base_upkeep - crew_wage`
+  остаётся на `add_to_all_pops` upkeep-города (как раньше). Дебет company
+  НЕ меняется — crew-доля ПЕРЕНАПРАВЛЕНА из существующего upkeep, а не
+  начислена поверх. Платит каждый день, когда upkeep платится (= дни службы;
+  корабль, застароженный без денег, не платит ничего). Storm/pirate repair
+  upkeep — НЕ crew wages, остаётся на `add_to_all_pops`.
+- `simulation/systems/profession_income_system.gd` (НОВЫЙ):
+  `ProfessionIncomeSystem.pay_officials()` — еженедельно, per-state. Для
+  каждого State: сумма official Pop.count по его городам, total_salary =
+  × `OFFICIAL_SALARY_PER_CAPITA_WEEKLY (12.0)`, `actual = min(total_salary,
+  treasury)`, scale = actual/total (урезание, если казна не покрывает),
+  кредит каждому town'у official Pop × scale, дебет `state.treasury`.
+  Банкротное государство (treasury 0) не платит ничего → чиновники живут на
+  сбережениях → SoL падает → B4 демотирует (official→laborer). Это ПЕРВЫЙ
+  отток из state.treasury (которые до этого только копили customs).
+- `simulation/weekly_tick.gd`: новое поле `profession_income_system` + init-
+  параметр; `pay_officials()` раз в неделю (guarded by
+  `_officials_done_this_week`, как migration), после `apply_investment_income`,
+  до `update_population` (чтобы сбережения чиновников пополнились перед
+  недельным потреблением). Флаг сбрасывается в `reset_weekly()`.
+- `simulation/simulation_engine.gd`: конструирование + wiring
+  `ProfessionIncomeSystem`.
+
+Money flow (оба conservеd, drift=0):
+- sailor: company.money (уже дебетован как upkeep) → sailor Pop.savings
+  (home port). Тот же дебет, кредит перенаправлен.
+- official: state.treasury → official Pop.savings. Оба в total_money.
+
+### Тесты
+
+`tests/test_profession_income.gd` + `.tscn` (6 тестов):
+1. crew_wage_redirect_to_home_port_sailors — company дебетован ровно
+   base_upkeep, sailor Pop получает crew_wage + port_services (единственный
+   pop), drift=0.
+2. crew_wage_capped_at_upkeep — огромный crew_size → crew_wage ограничен
+   upkeep, port_services=0, non-sailor Pop не получает ничего.
+3. officials_paid_from_state_treasury — treasury -= total, officials += total,
+   conserved.
+4. officials_scale_down_on_thin_treasury — treasury < bill → scaled payout,
+   treasury→0, conserved.
+5. officials_nothing_when_treasury_zero — банкротное государство платит 0.
+6. drift_zero_365days_full_world — |drift|<1 за 365 дней.
+
+Все 16 существующих сьютов по-прежнему проходят. Parse чистый.
+
+### Результаты (365-day sim, seed 1337)
+
+drift = 0.0000 (total_money 438700.0 conserved).
+
+Per-profession (Δcount vs day-0, Δsavings, avg SoL):
+- sailor: SoL 0.865 (+1015 count, +440k savings) — был без дохода, теперь на
+  уровне laborer (0.863) / servant (0.866). Crew wages выровняли моряков до
+  baseline poor-страты.
+- official: SoL 0.500, savings +39185 (казна платит), mild shrink -37. Все 4
+  государства несут treasury 26k-31k (customs >> salary drain) → ни одно не
+  банкрот → чиновники не демотируют в естественной trade-heavy Карибике. SoL
+  0.50 — нейтрально-пороговый рост ((0.50-0.65)*0.02/нед) → чиновники
+  стабильны, не бумкуют (корректно для rich-страты).
+- Mobility теперь СТРЕЛЯЕТ: 4 Pops on cooldown (vs 0 в B4-тесте, который
+  warned "no Pop on cooldown"). Новые источники дохода сдвинули SoL
+  sailor/official в диапазоны, где promotion/demotion реально срабатывают.
+- planter (SoL 0.50, savings -5702) и financier (SoL 0.50, savings -2666) всё
+  ещё дефицитные — у них НЕТ нового источника дохода пока. planter → land rent
+  (Stage 4), financier → credit (Stage 5). Помечено, не чинится здесь.
+- middle (artisan/smith/merchant/small_planter): SoL 0.63, mild shrink —
+  без изменений с B3.2, ожидаемо (merchant/small_planter получат dedicated
+  доход в Stage 3/4).
+
+### Что НЕ сделано (этапы 2-6, по плану)
+
+- Stage 2: доход servant (расход rich-домохозяйств — условный от состояния
+  домохозяйства, не безусловная выплата).
+- Stage 3: доход merchant через trade houses / посредничество (НЕ универсальная
+  комиссия 1% — building-tied услуга).
+- Stage 4: доход planter через LAND RENT / собственность на землю (НЕ
+  перераспределение дивидендов crop-индустрий — это протащило бы модель
+  собственности, которой нет; все индустрии сейчас default_owner "town").
+- Stage 5: доход financier через credit/loans (связка с C4 bankruptcy+loans).
+- Stage 6: EconomicBuilding — обобщить Industry в типы зданий
+  (production/commercial/administrative/financial/service), у каждого свои
+  правила owner/hiring/money-source. Здания как работодатели ИЛИ
+  service-providers ИЛИ property — три разные роли, не смешивать.
+- Crisis-сценарии (банкротное государство → чиновники демотируют; коллапс
+  спроса): естественный 365-day sim не даёт банкротного государства (все
+  государства trade-rich). Механика доказана юнит-тестами (test 5 + B4
+  demotion test); отдельный crisis-injection сценарий — follow-up balancing,
+  не код Stage 1.
+- Пороги B4 (SOL_PROMOTION_MIN 0.8 / SOL_DEMOTION_MAX 0.3) намеренно НЕ
+  перенастраивались — по согласованному подходу сначала наблюдаем; новые
+  источники дохода заставили mobility стрелять (4 cooldowns) без изменения
+  порогов.
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

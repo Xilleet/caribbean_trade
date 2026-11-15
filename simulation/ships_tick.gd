@@ -11,6 +11,17 @@ var trade_system: TradeSystem
 var market_system: MarketSystem
 var ai_brain: AIBrain   # Price-responsive decision engine for AI ships
 
+# Stage 1 (profession income): daily wage per crew member. The crew's total
+# wage = crew_size * CREW_WAGE_PER_DAY, carved out of the existing upkeep_daily
+# debit (REDIRECTED, not added — the company still pays exactly base_upkeep).
+# The crew slice goes to the sailor Pop of ship.home_port (the crew is
+# recruited and paid there, not at the port-of-call); the remainder stays as
+# port-services to the upkeep town's whole population (as before). A ship with
+# a large crew (fluyt, 30) routes ~all of upkeep to sailors; a small sloop (12)
+# routes ~45%. Storm/pirate repair upkeep is NOT crew wages — it stays on
+# add_to_all_pops (it's repair work done locally, not a crew stipend).
+const CREW_WAGE_PER_DAY: float = 0.3
+
 func _init(p_trade: TradeSystem, p_market: MarketSystem) -> void:
 	trade_system = p_trade
 	market_system = p_market
@@ -25,9 +36,11 @@ func _step_ship(ship: Ship) -> void:
 	if company == null:
 		return
 
-	# Upkeep: paid to crew/port services, routed to the town the ship is
-	# associated with so the money stays in circulation. A broke company
-	# strands the ship (it goes idle until it has cash again).
+	# Upkeep: split into CREW WAGES (paid to the sailor Pop of ship.home_port)
+	# and PORT SERVICES (paid to the local upkeep town's whole population). The
+	# company is debited exactly base_upkeep either way — only the credit
+	# routing changes (Stage 1: sailors get a dedicated income stream instead
+	# of a 1/10 trickle). A broke company strands the ship (idle until cash).
 	var upkeep_town: Town = _town_for(ship)
 	# Stage 6: a storm adds damage-repair upkeep on top of the crew's wage,
 	# paid to the same local town (company -> population_money, conserved).
@@ -39,8 +52,28 @@ func _step_ship(ship: Ship) -> void:
 		ship.state = "idle"
 		return
 	company.money -= base_upkeep
+	# Stage 1: split base_upkeep into crew wages + port services. Crew wages
+	# are capped at base_upkeep (can't pay the crew more than the upkeep budget)
+	# — if crew_size * wage would exceed upkeep, the whole upkeep goes to
+	# sailors and port services get nothing this day.
+	var crew_wage_owed: float = ship.crew_size * CREW_WAGE_PER_DAY
+	var crew_wage: float = min(crew_wage_owed, base_upkeep)
+	var port_services: float = base_upkeep - crew_wage
+	var home_town: Town = WorldState.get_town(ship.home_port)
+	# Credit crew wages to the home port's sailors; fall back to the upkeep
+	# town's sailors if there's no home port. Credit port services to the
+	# upkeep town's whole population; fall back to the home town if the ship
+	# has no current/destination town. Either way the full base_upkeep is
+	# credited somewhere (conserved) as long as one of the two towns exists —
+	# the same assumption the original single-credit made.
+	if home_town != null:
+		home_town.add_to_pop("sailor", crew_wage)
+	elif upkeep_town != null:
+		upkeep_town.add_to_pop("sailor", crew_wage)
 	if upkeep_town != null:
-		upkeep_town.add_to_all_pops(base_upkeep)
+		upkeep_town.add_to_all_pops(port_services)
+	elif home_town != null:
+		home_town.add_to_all_pops(port_services)
 	# the player's daily upkeep is a silent wallet drain — log it so the
 	# player sees where the money went (answers "money just decreases"). AI
 	# companies stay quiet: their books are off-screen and logging 3 rivals/day

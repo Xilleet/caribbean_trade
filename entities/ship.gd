@@ -31,6 +31,19 @@ var route_id: String = ""
 # ShipsTick uses effective_prob = base_prob / (1 + armed).
 var armed: int = 0
 var flag_state: String = ""   # Stage A3: which state's colours this ship flies (player="england", AI=home.state_id)
+# Stage 1 (profession income): the port the crew is recruited from and paid at.
+# Crew wages (a slice of upkeep_daily) are credited to the sailor Pop of this
+# town — NOT to the port-of-call — so a ship at sea for days still pays its
+# crew at home, and sailors concentrate in home ports (Tortuga, Port Royale)
+# rather than whichever port the ship happens to be passing. Set at creation:
+# player ship → starting town, AI ship → its "home" data field.
+var home_port: String = ""
+# Stage 1 (profession income): crew size by ship type (sloop 12, brigantine 20,
+# fluyt 30, packet 15 — historical age-of-sail complements). Determines how
+# much of upkeep_daily is crew wages vs port services: crew_wage_owed =
+# crew_size * CREW_WAGE_PER_DAY, capped at upkeep_daily (the upkeep budget is
+# the total debit — crew wages are REDIRECTED from it, never added on top).
+var crew_size: float = 12.0
 # Stage 4: when true the ship auto-trades its route and departs on its own
 # (headless verification, future AI ships). When false the ship only docks and
 # waits — the player manually buys/sells and clicks "Отплыть" to depart.

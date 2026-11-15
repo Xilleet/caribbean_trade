@@ -203,6 +203,10 @@ func build_world() -> void:
 	var ship := Ship.new("ship_1", player.id, "brigantine",
 			float(sd["speed"]), float(sd["cargo_capacity"]), float(sd["upkeep_daily"]))
 	ship.passenger_capacity = float(sd.get("passenger_capacity", 0.0))
+	# Stage 1 (profession income): crew complement + home port. Crew wages
+	# (a slice of upkeep_daily) are paid to the sailor Pop of home_port.
+	ship.crew_size = float(sd.get("crew_size", 12.0))
+	ship.home_port = "tortuga"
 	var home: Town = get_town("tortuga")
 	if home != null:
 		ship.pos = home.coords
@@ -230,6 +234,7 @@ func build_world() -> void:
 		var ai_ship := Ship.new(aship_id, ai_co.id, stype,
 				float(asd["speed"]), float(asd["cargo_capacity"]), float(asd["upkeep_daily"]))
 		ai_ship.passenger_capacity = float(asd.get("passenger_capacity", 0.0))
+		ai_ship.crew_size = float(asd.get("crew_size", 12.0))
 		ai_ship.route_id = String(ad["route_id"])
 		ai_ship.auto_trade = true
 		var home_id: String = String(ad.get("home", ""))
@@ -237,6 +242,7 @@ func build_world() -> void:
 		if home_t != null:
 			ai_ship.pos = home_t.coords
 		ai_ship.current_town_id = home_id
+		ai_ship.home_port = home_id   # Stage 1: crew paid at home port
 		ai_ship.state = "docked"
 		ai_ship.flag_state = home_t.state_id if home_t != null else ""   # Stage A3: AI flies home-port colours
 		ai_co.ship_ids.append(aship_id)
