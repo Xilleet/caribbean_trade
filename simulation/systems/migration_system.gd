@@ -54,7 +54,7 @@ func compute_migration(towns: Array) -> void:
 				var other_score: float = other_wage * other.satisfaction
 				# Check unmet demand: does this town have industries needing
 				# this profession, with demand > available supply?
-				if _has_unmet_demand(other, p.profession, recipes):
+				if other.has_unmet_demand(p.profession, recipes):
 					if other_score > best_demand_score:
 						best_demand_score = other_score
 						best_demand_dest = other.id
@@ -70,20 +70,6 @@ func compute_migration(towns: Array) -> void:
 					"count": wanting,
 					"destination": dest,
 				})
-
-## Check if town has UNMET DEMAND for a profession: industries requiring
-## this profession have target_workers > available supply (shortage).
-## Returns true if migration to this town would likely result in employment.
-func _has_unmet_demand(town: Town, prof: String, recipes: Dictionary) -> bool:
-	var demand: float = 0.0
-	for ind in town.industries:
-		var recipe: Dictionary = recipes.get(ind.recipe_id, {})
-		if String(recipe.get("profession_required", "laborer")) == prof:
-			demand += ind.target_workers
-	if demand <= 0.0:
-		return false   # no industries need this profession here
-	var supply: float = town.get_available_workers(prof)
-	return demand > supply
 
 ## Cap waiting queue to prevent infinite buildup. Keeps only the most recent
 ## entries per profession (passengers who waited longest give up and return

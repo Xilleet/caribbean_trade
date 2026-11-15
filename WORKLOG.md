@@ -1503,6 +1503,142 @@ go to a town with high wages but no smithy (wouldn't find work).
 
 ---
 
+## B3.2 + B4 — investment income & social mobility
+
+**Коммит:** (pending push)
+
+Implements the prerequisite (B3.2: passive income for capital-owning Pops)
+and the social-mobility system (B4: promotion/demotion between professions
+and strata), per the approved plan.
+
+### Что изменено
+
+**`entities/pop.gd`:**
+- NEW `mobility_cooldown: int` — weeks remaining before this Pop can be a
+  SOURCE of a social-mobility transition. Set to 4 when a transition fires;
+  decremented each week by `SocialMobilitySystem`.
+
+**`entities/town.gd`:**
+- NEW public `has_unmet_demand(prof, recipes)` — moved here from a private
+  method on `MigrationSystem`. Checks whether industries requiring `prof`
+  have `target_workers > available supply` (shortage). Used by BOTH
+  migration destination selection (B3.1) and social-mobility promotion
+  gating (B4).
+
+**`simulation/systems/population_system.gd`:**
+- NEW `apply_investment_income(t)` (B3.2): weekly passive income — rich Pops
+  earn 0.5%/wk on savings (~29%/yr), middle 0.1%/wk (~5%/yr), poor 0. Income
+  drawn from `market.fund → pop.savings` (conserved). If `market.fund` can't
+  cover the total payout, every payout scales down by the same ratio (no
+  money created, drift=0). Runs first in the weekly tick so rich Pops'
+  savings are topped up for the week's daily consumption (prevents the B3
+  problem where planter/official/financier depleted savings and shrank).
+- NEW consts `INVESTMENT_RATE_RICH` (0.005), `INVESTMENT_RATE_MIDDLE` (0.001).
+
+**`simulation/systems/migration_system.gd`:**
+- `_has_unmet_demand` removed (was a private duplicate); `compute_migration`
+  now calls `town.has_unmet_demand(...)`. No behavior change — logic is
+  identical, just de-duplicated onto `Town`.
+
+**`simulation/systems/social_mobility_system.gd` (NEW, B4):**
+- `update_social_mobility(t, recipes)`: weekly pass. Decrements cooldowns,
+  then for each eligible Pop (cooldown ≤ 0) checks promotion (SoL > 0.8) or
+  demotion (SoL < 0.3).
+- Promotion gates: SoL > 0.8 AND per-capita savings > 12× weekly basket cost
+  (relative to current prices via `ConsumptionSystem.BASKETS`) AND, if the
+  target profession is industry-hired, `town.has_unmet_demand(target)` (a
+  shortage — no unemployed specialists minted). Capital/self-employed
+  targets (merchant, planter, financier, official, small_planter, servant,
+  sailor — no industry hires them) are gated by the savings threshold alone.
+- Demotion gates: SoL < 0.3 AND per-capita savings < 1× weekly basket cost
+  (capital exhausted — the Pop held on as long as it could afford to).
+- Transition tables (revised per plan): promotion laborer→artisan,
+  sailor→merchant, servant→artisan, artisan→small_planter, smith→small_planter,
+  merchant→financier, small_planter→planter; demotion artisan→laborer,
+  smith→laborer, merchant→sailor, small_planter→laborer, planter→small_planter,
+  financier→merchant, official→laborer (NOT merchant — dismissed official
+  becomes unemployed laborer). Land-based targets (small_planter, planter)
+  gated on `_has_available_land` stub → false (dormant until G1).
+- Transfer: `delta_count = source.count × RATE`, `delta_savings = source.savings × RATE`
+  — proportional, per-capita wealth preserved, drift=0. Source goes on
+  4-week cooldown. Min transition 0.5 people (avoids microscopic transfers).
+- Rates: `PROMOTION_RATE=0.002` (0.2%/wk → ~10%/yr), `DEMOTION_RATE=0.005`
+  (0.5%/wk → ~23%/yr — downward faster than upward).
+- Diagnostic counters: `transitions_total`, `promotions_total`,
+  `demotions_total` — for balancing (if 0 over a long run, thresholds are
+  too strict for the current economy).
+
+**`simulation/weekly_tick.gd`:**
+- NEW field `social_mobility_system` + constructor param. Weekly order now:
+  distribute_profits → **apply_investment_income** (B3.2) → update_population →
+  **update_social_mobility** (B4) → update_employment → adjust_wages →
+  compute_migration. Investment income before growth (top up savings);
+  mobility before employment (freshly-promoted artisans hireable same week).
+
+**`simulation/simulation_engine.gd`:**
+- Creates `SocialMobilitySystem` and passes it to `WeeklyTick`.
+
+**Tests: NEW `tests/test_mobility.gd` + `.tscn` (6 tests):**
+1. `promotion_with_demand` — laborer→artisan fires (SoL 0.9 + savings buffer
+   + artisan shortage); count+savings transfer proportionally; cooldown=4;
+   conserved.
+2. `promotion_without_demand_blocked` — laborer→artisan BLOCKED when artisan
+   supply covers demand (no shortage) — solves "сотни рабочих становятся
+   ремесленниками без мастерских".
+3. `demotion_fires` — artisan→laborer fires (SoL 0.2 + savings exhausted);
+   proportional transfer; cooldown=4; conserved.
+4. `cooldown_blocks_repeat_transition` — call 1 fires (cooldown=4), calls
+   2-4 frozen (cooldown decrements 3→2→1), call 5 fires again (cooldown→0).
+   Exactly 2 transitions in 5 weekly calls. (Test uses a large
+   `target_workers` so the artisan shortage persists — otherwise call 1
+   resolves the shortage and call 5 is blocked by demand, not cooldown.)
+5. `drift_zero_with_mobility_and_investment` — 35-day full-world sim,
+   |drift| < 1.0 with investment income + mobility + employment + wages +
+   migration all active.
+6. `investment_income_conserved` — rich +0.5%/wk, middle +0.1%/wk, poor 0;
+   drawn from `market.fund`; fund-limit case scales payout down (no money
+   created); conserved.
+
+### Результаты
+
+All 15 test suites PASS (84 tests). 365-day sim (seed 1337):
+
+```
+Money: start=438700 end=438700 drift=0.0000 ✓
+Population: total=9689 (poor=8560 middle=952 rich=177)  avg_satisfaction=0.835
+Mobility: transitions_total=16  promotions=16  demotions=0
+Player profit: +13410
+```
+
+Mobility fires (16 promotions over the year — ~1 every 3 weeks somewhere in
+the Caribbean) but is subtle by design (0.2%/wk on top of strict SoL+savings
++demand gates). Demotion is dormant in the current economy because no Pop's
+SoL collapses below 0.3 (middle/rich Pops sit at 0.59-0.66, not destitute) —
+this is realistic, not a bug. The feature is correct (6 unit tests prove the
+gates fire/block as designed); making mobility more visible is a balancing
+lever (lower SoL thresholds, lower the 12-week savings buffer, or shift the
+economy so more Pops hit the SoL extremes) — not a code change.
+
+Strata dynamics vs B3 (day 7 → day 364): poor 5160→8560 (+3400, high-SoL
+laborers grow + some promotions in), middle 1370→952 (-418, moderate-SoL
+shrinkage outweighs in-migration), rich 298→177 (-121, low-SoL shrink, no
+promotion into rich since small_planter→planter is land-gated/dormant and
+merchant→financier needs merchant SoL>0.8). Investment income (B3.2) slows
+but doesn't reverse the rich shrink — their luxury consumption (tobacco, rum,
+metal_goods) outpaces the 0.5%/wk return. Coherent with colonial dynamics.
+
+### Что НЕ сделано
+
+- Per-profession consumption baskets (B3.3) — still needs more goods (D2).
+- Land-based promotions (laborer→small_planter, small_planter→planter) —
+  dormant, gated on `_has_available_land` stub → false until G1 (land &
+  natural resources).
+- Demotion never fires in the current economy (no Pop hits SoL<0.3) — a
+  balancing concern, reported honestly, not fixed by changing the spec'd
+  thresholds.
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

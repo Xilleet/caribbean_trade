@@ -31,6 +31,13 @@ var living_standard: float = 1.0 # B3 stub: 0..1 SoL (consumption / needs)
 var satisfaction: float = 1.0    # B2 stub: 0..1 (per-Pop, currently mirrors town.satisfaction)
 var migration_propensity: float = 0.0  # B2 stub: 0..1 (willingness to migrate)
 var employed_count: float = 0.0  # B2 stub: how many in this group are employed
+# Stage B4: weeks remaining before this Pop can be a SOURCE of a social-mobility
+# transition (promotion or demotion). Set to MOBILITY_COOLDOWN_WEEKS when a
+# transition fires; decremented each week by SocialMobilitySystem. A Pop with
+# cooldown > 0 is skipped — this prevents the same group ping-ponging between
+# two professions week after week (no infinite switching). Count/savings are
+# never affected by cooldown — only the eligibility to transition.
+var mobility_cooldown: int = 0
 
 func _init(p_id: String, p_town_id: String, p_class: String, p_profession: String, p_count: float) -> void:
 	id = p_id

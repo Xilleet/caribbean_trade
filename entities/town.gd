@@ -178,3 +178,28 @@ func get_available_workers(prof: String) -> float:
 		if p.profession == prof:
 			s += p.count
 	return s
+
+## Stage B3.1 (now on Town, was private on MigrationSystem): does this town
+## have UNMET DEMAND for a profession — i.e. industries requiring it have
+## [param target_workers] greater than the available worker supply (shortage)?
+## Returns true if a worker of this profession moving here would likely find
+## employment. Used by migration destination selection (B3.1) and by social
+## mobility promotion gating (B4: a laborer only promotes to artisan if the
+## town actually has unfilled artisan jobs — otherwise we'd produce hundreds
+## of artisans with no workshops to work in).
+##
+## Returns false when no industry in town requires [param prof] (no demand
+## signal at all). B4's promotion logic treats "no industries for this
+## profession" separately from "industries exist but no shortage": the former
+## is a capital/self-employed profession (merchant, planter, financier...)
+## where the savings threshold alone gates promotion.
+func has_unmet_demand(prof: String, recipes: Dictionary) -> bool:
+	var demand: float = 0.0
+	for ind in industries:
+		var recipe: Dictionary = recipes.get(ind.recipe_id, {})
+		if String(recipe.get("profession_required", "laborer")) == prof:
+			demand += ind.target_workers
+	if demand <= 0.0:
+		return false   # no industries need this profession here
+	var supply: float = get_available_workers(prof)
+	return demand > supply

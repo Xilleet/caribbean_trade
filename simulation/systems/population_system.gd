@@ -24,8 +24,72 @@ const WAGE_ADJUSTMENT_RATE: float = 0.05   # 5% per week toward equilibrium
 const WAGE_MIN: float = 0.5                # never below 50% of base wages
 const WAGE_MAX: float = 3.0                # never above 300% of base wages
 
+# Stage B3.2: passive investment income. Rich Pops (planter, official,
+# financier) own capital — plantations, credit, land — and earn a weekly
+# return on their savings. Middle Pops (merchant, small_planter) earn a
+# smaller return (small business). Poor Pops live paycheck to paycheck
+# and earn nothing. This keeps rich Pops from depleting savings and
+# shrinking (the B3 problem: planter/official/financier had sat ~0.59 and
+# were shrinking because they had no income source).
+#
+# Rates are weekly: 0.5% for rich (~29% simple annual, realistic for
+# colonial investments), 0.1% for middle (~5% annual). The income is drawn
+# from market.fund (money in circulation) so total_money is conserved —
+# drift=0. If market.fund can't cover the total payout, every payout is
+# scaled down proportionally (no money created).
+const INVESTMENT_RATE_RICH: float = 0.005    # 0.5%/week → ~29%/year
+const INVESTMENT_RATE_MIDDLE: float = 0.001  # 0.1%/week → ~5%/year
+
 func calculate_satisfaction(t: Town) -> float:
 	return t.satisfaction
+
+## Stage B3.2: weekly passive investment income. Rich Pops earn 0.5%/week on
+## savings, middle Pops 0.1%/week, poor Pops nothing. The income is drawn
+## from [param t.market.fund] (money in circulation) and credited to each
+## Pop's [param savings] — so [param WorldState.total_money] is conserved.
+## If [param market.fund] can't cover the total payout, every payout is
+## scaled down by the same ratio (no money created, drift=0 preserved).
+## Called first in [param WeeklyTick.run], before population growth and
+## social mobility, so rich Pops' savings are topped up for the week's
+## daily consumption cycle (keeps their SoL from collapsing).
+func apply_investment_income(t: Town) -> void:
+	# First pass: compute the total payout we WOULD make.
+	var total_income: float = 0.0
+	for p in t.pops:
+		var rate: float = _investment_rate_for(p.social_class)
+		if rate > 0.0 and p.savings > 0.0:
+			total_income += p.savings * rate
+	# Nothing to pay (no rich/middle savings, or all rates zero) → done.
+	if total_income <= 0.0:
+		return
+	# Money in circulation. If the fund is empty/stranded, there is no
+	# circulating capital to pay investment returns from this week — skip
+	# (the payout is deferred, not created out of thin air).
+	var available: float = t.market.fund
+	if available <= 0.0:
+		return
+	# Scale every payout by the same ratio if the fund can't cover the total.
+	# This preserves the relative distribution of investment income and keeps
+	# drift exactly 0 (we never credit more than we debit).
+	var scale: float = 1.0 if total_income <= available else available / total_income
+	for p in t.pops:
+		var rate: float = _investment_rate_for(p.social_class)
+		if rate <= 0.0 or p.savings <= 0.0:
+			continue
+		var income: float = p.savings * rate * scale
+		p.savings += income
+		t.market.fund -= income
+
+## Investment return rate by stratum: rich 0.5%/week, middle 0.1%/week,
+## poor 0. Poor Pops live paycheck to paycheck — no capital to invest.
+func _investment_rate_for(social_class: String) -> float:
+	match social_class:
+		"rich":
+			return INVESTMENT_RATE_RICH
+		"middle":
+			return INVESTMENT_RATE_MIDDLE
+		_:
+			return 0.0
 
 func update_population(t: Town, _rng: RandomNumberGenerator) -> void:
 	# Stage B3: per-Pop growth based on each Pop's own satisfaction (SoL).
