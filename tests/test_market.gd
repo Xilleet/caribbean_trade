@@ -76,16 +76,18 @@ func test_buy_money_limit() -> bool:
 	return passed
 
 func test_production_needs_inputs() -> bool:
-	# A textile mill with no cotton on the market must produce 0 textiles.
+	# A textile mill with no cloth on the market must produce 0 textiles.
+	# Stage C7: textile_mill now takes cloth (intermediate) instead of cotton
+	# (raw) — see data/recipes.json. Test mirrors the live data recipe.
 	var ms := MarketSystem.new()
 	var prod := ProductionSystem.new(ms)
 	var t := Town.new("t_test", "TestTown")
-	t.market.add_good("cotton", 45.0, 5.0, 180.0, 0.0)   # no cotton
+	t.market.add_good("cloth", 80.0, 15.0, 220.0, 0.0)   # no cloth
 	t.market.add_good("textiles", 150.0, 20.0, 500.0, 0.0)
 	var ind := Industry.new("i1", "textile_mill", "t_test", 10.0, 1000.0)
 	t.industries.append(ind)
 	var recipes := {
-		"textile_mill": {"id":"textile_mill","inputs":{"cotton":2},"outputs":{"textiles":1},
+		"textile_mill": {"id":"textile_mill","inputs":{"cloth":2},"outputs":{"textiles":1},
 			"workers_required":10,"daily_capacity":8,"daily_wages":22,"daily_maintenance":5}
 	}
 	prod.reset_daily_stats(t)

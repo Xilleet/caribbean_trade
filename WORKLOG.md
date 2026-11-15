@@ -938,6 +938,104 @@ Player profit +13619.3 идентичен baseline до C1 — потому чт
 
 ---
 
+## C7 — производственные цепочки и промежуточные товары (DAG)
+
+**Коммит:** (pending push)
+
+Второй срез по audit-favourite «предприятия + рынок труда + производственные
+цепочки». Превращает 1-шаговые цепочки в 3-шаговые. audit's thesis:
+«нехватка одного промежуточного товара распространяется дальше по цепочке»
+реализована через regional specialization — не каждый город получил
+промежуточный этап.
+
+### Что изменено
+
+- `data/goods.json` — +4 новых товара: `sugar_cane` (raw, base 18),
+  `iron_ore` (raw, base 35), `cloth` (intermediate, base 80),
+  `lumber` (intermediate, base 65).
+- `data/recipes.json` — 3 изменения + 4 новых рецепта:
+  - `sugar_plantation`: outputs `sugar_cane` вместо `sugar`
+  - `mine`: outputs `iron_ore` вместо `metal`
+  - `textile_mill`: inputs `cloth` вместо `cotton`
+  - NEW `sugar_mill`: `{sugar_cane: 2}` → `{sugar: 1}`
+  - NEW `smelter`: `{iron_ore: 2}` → `{metal: 1}`
+  - NEW `weaver`: `{cotton: 2}` → `{cloth: 1}`
+  - NEW `sawmill`: `{wood: 2}` → `{lumber: 1}`
+- `data/industries.json` — +4 новых шаблона с `default_owner: "town"`.
+- `data/towns.json` — +9 новых industries в 7 городах (surgical insertion,
+  preserving original formatting — 9 lines added, 0 removed):
+  - gibara/havana/bridgetown/san_juan: +sugar_mill
+  - santiago/cartagena: +smelter
+  - paramaribo: +weaver +sawmill
+  - nassau: +sawmill
+- `simulation/systems/production_system.gd` — `CROP_GOODS`: `"sugar"` →
+  `"sugar_cane"` (drought теперь режет урожай sugar_plantation через выход
+  sugar_cane, а не sugar_mill; sugar_mill голодает по входу при нехватке
+  sugar_cane — audit's "processed food starves indirectly via its input").
+- `tests/test_market.gd:88` — hardcoded textile_mill recipe updated:
+  `cotton` → `cloth` (sync с новой data).
+- `tests/test_chains.gd` + `.tscn` (NEW) — 5 тестов:
+  `sugar_chain_produces_rum_end_to_end`, `iron_chain_produces_metal_goods_end_to_end`,
+  `textile_chain_uses_cloth_intermediate`, `lumber_chain_produces_lumber`,
+  `chain_breaks_when_intermediate_missing`.
+
+### Regional specialization
+
+8 chain breaks в 5 городах-импортёрах (города с consumer-tier industry, но
+БЕЗ промежуточного этапа — должны импортировать intermediate goods через
+корабли):
+- port_royal: smithy (no smelter) + textile_mill (no weaver)
+- willemstad: smithy (no smelter) + textile_mill (no weaver)
+- tortuga: distillery (no sugar_mill)
+- cap_francais: distillery (no sugar_mill)
+- fort_de_france: distillery (no sugar_mill)
+- san_juan: smithy (no smelter)
+
+### Тесты
+
+**57 тестов (52 + 5)**, все PASS:
+- test_market 5, test_trade 2, test_manual_trade 5, test_ai_traders 8,
+  test_events 4, test_states 6, test_pirates 4, test_wars 11,
+  test_diplomacy 4, test_ownership 3, **test_chains 5 (NEW)**.
+
+### Метрики (365 дней, seed 1337, до vs после C7)
+
+```
+                       до C7         после C7       Δ
+Money: start=528700  → start=541700  (+13000 = 9 новых industries)
+drift:  0.0000       → -0.0000       conservation сохранён
+Player: +13619       → +11163        -2456 (AI забирает arbitrage)
+AI Havana Sugar:  +5845 → +10242     +4397 (chain breaks → arbitrage)
+AI Santiago Metals: +3640 → +6492    +2852
+AI Carib Produce:   -719 → +374      +1093 (стал прибыльным)
+Events: 375          → 346          -29
+Wars:   5/5/61       → 5/5/61       0
+```
+
+**Что произошло:** AI компании стали гораздо прибыльнее (Havana Sugar
+удвоил P/L) — AIBrain price-responsive, видит arbitrage между городами с
+chain breaks и активно возит intermediate + end goods. Player profit упал
+на 2456 — AI забирает часть arbitrage, который раньше доставался player's
+fixed route. Carib Produce (раньше убыточная) стала прибыльной. Экономика
+стала **конкурентнее** и **специализированнее** — это и было целью
+regional specialization.
+
+### Что НЕ сделано (явно — для следующих срезов)
+
+- Shipyard — `lumber` остаётся tradeable intermediate без end-consumer.
+  Shipyard приходит в J2 (city infrastructure).
+- Split `metal_goods` → `tools` + `weapons` — оставляем `metal_goods` как
+  end product. Разделение — позже, когда появятся state/military demand (K1).
+- Rename `textiles` → `clothing` — оставляем `textiles`, просто добавили
+  `cloth` промежуточным.
+- UI visualization of chains — позже, вместе с C2 buy/sell UI.
+- Chain balance tweaks — некоторые города могут голодать по end goods
+  (tortuga без sugar → rum дорогой → rich недоволен). Это ожидаемо
+  (audit's thesis). Тонкая balance-правка — позже, после наблюдения за
+  долгими прогонами.
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

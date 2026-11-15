@@ -11,5 +11,9 @@
   "distillery":          {"recipe_id":"distillery","default_workers":8,"default_money":1600,"default_owner":"town"},
   "textile_mill":        {"recipe_id":"textile_mill","default_workers":10,"default_money":1800,"default_owner":"town"},
   "smithy":              {"recipe_id":"smithy","default_workers":10,"default_money":2000,"default_owner":"town"},
-  "bakery":              {"recipe_id":"bakery","default_workers":10,"default_money":1500,"default_owner":"town"}
+  "bakery":              {"recipe_id":"bakery","default_workers":10,"default_money":1500,"default_owner":"town"},
+  "sugar_mill":          {"recipe_id":"sugar_mill","default_workers":8,"default_money":1400,"default_owner":"town"},
+  "smelter":             {"recipe_id":"smelter","default_workers":10,"default_money":1800,"default_owner":"town"},
+  "weaver":              {"recipe_id":"weaver","default_workers":8,"default_money":1400,"default_owner":"town"},
+  "sawmill":             {"recipe_id":"sawmill","default_workers":6,"default_money":1200,"default_owner":"town"}
 }

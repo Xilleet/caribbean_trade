@@ -970,3 +970,163 @@ headless sim: `start=528700.0 end=528700.0 drift=0.0000`, player profit
    не трогают owner_id, только `distribute_profits` его читает).
 
 ---
+
+## 17. C7 — производственные цепочки как DAG
+
+C7 — второй срез по audit-favourite «предприятия + рынок труда +
+производственные цепочки». Превращает 1-шаговые цепочки в 3-шаговые с
+промежуточными товарами. Дефицит распространяется автоматически через
+существующий `production_system` (он уже проверяет доступность входов
+перед запуском партии) — никакой новой логики для chain propagation
+не понадобилось.
+
+### 17.1. Что добавлено
+
+**4 новых товара** (`data/goods.json`):
+- `sugar_cane` (raw, base 18) — урожай sugar_plantation
+- `iron_ore` (raw, base 35) — продукция mine
+- `cloth` (intermediate, base 80) — продукция weaver
+- `lumber` (intermediate, base 65) — продукция sawmill
+
+**4 новых рецепта** (`data/recipes.json`):
+- `sugar_mill`: `{sugar_cane: 2}` → `{sugar: 1}` (8 workers, cap 8)
+- `smelter`: `{iron_ore: 2}` → `{metal: 1}` (10 workers, cap 6)
+- `weaver`: `{cotton: 2}` → `{cloth: 1}` (8 workers, cap 7)
+- `sawmill`: `{wood: 2}` → `{lumber: 1}` (6 workers, cap 8)
+
+**3 изменённых рецепта:**
+- `sugar_plantation`: outputs `sugar_cane` вместо `sugar`
+- `mine`: outputs `iron_ore` вместо `metal`
+- `textile_mill`: inputs `cloth` вместо `cotton`
+
+**4 новых шаблона предприятий** (`data/industries.json`) с `default_owner: "town"`.
+
+**9 новых industries в 7 городах** (`data/towns.json`) — regional
+specialization. Не каждый город получил промежуточный этап:
+
+| Town | +industry | Роль |
+|---|---|---|
+| gibara | +sugar_mill | Self-sufficient sugar chain |
+| havana | +sugar_mill | Self-sufficient sugar chain |
+| bridgetown | +sugar_mill | Self-sufficient sugar chain |
+| san_juan | +sugar_mill | Sugar producer (sugar экспорт, smithy без smelter → chain break) |
+| santiago | +smelter | Self-sufficient iron chain |
+| cartagena | +smelter | Self-sufficient iron chain |
+| paramaribo | +weaver +sawmill | Cloth + lumber producer |
+| nassau | +sawmill | Lumber producer |
+
+**8 chain breaks в 5 городах-импортёрах:**
+- port_royal: smithy (no smelter) + textile_mill (no weaver)
+- willemstad: smithy (no smelter) + textile_mill (no weaver)
+- tortuga: distillery (no sugar_mill)
+- cap_francais: distillery (no sugar_mill)
+- fort_de_france: distillery (no sugar_mill)
+- san_juan: smithy (no smelter)
+
+Эти города должны импортировать intermediate goods через корабли (AI или
+player), иначе их consumer-tier industries idle. audit's thesis: «нехватка
+одного промежуточного товара распространяется дальше по цепочке» — это и
+происходит: нет sugar_mill → нет sugar → distillery idle → rum shortage →
+rum price spike → AI ships (через PriceMemory arbitrage) начинают возить
+sugar в этот город.
+
+**CROP_GOODS update** (`simulation/systems/production_system.gd`):
+```
+# было: ["corn", "fruits", "sugar", "tobacco", "hemp", "cotton"]
+# стало: ["corn", "fruits", "sugar_cane", "tobacco", "hemp", "cotton"]
+```
+Теперь drought режет урожай sugar_plantation (через выход `sugar_cane`),
+а не sugar_mill. sugar_mill — processing facility, drought напрямую не
+влияет, но голодает по входу при нехватке sugar_cane (audit's "processed
+food starves indirectly via its input").
+
+### 17.2. Почему drift=0 сохранился
+
+C7 — data-only изменения + 1 константа в production_system. Никаких новых
+money flows. Industries по-прежнему:
+- покупают inputs через `MarketSystem.buy` (money: industry → market.fund)
+- продают outputs через `MarketSystem.sell` (money: market.fund → industry)
+- платят wages/maintenance (money: industry → population_money / market.fund)
+- платят дивиденды через `FinanceSystem._route_dividend` (C1)
+
+Все счета уже в `WorldState.total_money()`. drift=0 верифицирован на 365-day
+headless sim: `start=541700.0 end=541700.0 drift=-0.0000`. `total_money`
+вырос с 528700 (до C7) до 541700 — потому что добавилось 9 новых industries
+с начальным капиталом ~1400-1800 каждый = ~13000 + price adjustments.
+
+### 17.3. Тесты после C7
+
+Всего **57 тестов (52 + 5)**, все PASS:
+- test_market 5, test_trade 2, test_manual_trade 5, test_ai_traders 8,
+  test_events 4, test_states 6, test_pirates 4, test_wars 11,
+  test_diplomacy 4, test_ownership 3, **test_chains 5 (NEW)**.
+
+`test_chains.tscn` проверяет:
+1. `sugar_chain_produces_rum_end_to_end` — town с sugar_plantation +
+   sugar_mill + distillery, 7 дней → rum > 0. drift=0.
+2. `iron_chain_produces_metal_goods_end_to_end` — town с mine + smelter +
+   smithy → metal_goods > 0. drift=0.
+3. `textile_chain_uses_cloth_intermediate` — town с cotton_plantation +
+   weaver + textile_mill → textiles > 0. drift=0.
+4. `lumber_chain_produces_lumber` — town с lumber_camp + sawmill → lumber > 0.
+   drift=0.
+5. `chain_breaks_when_intermediate_missing` — town с distillery БЕЗ sugar_mill
+   → distillery produced_batches = 0, rum = 0, sugar_cane accumulates.
+   Доказывает audit's thesis: chain break в одном городе → end-good shortage.
+
+**Важный нюанс тестов:** в `test_chains` цикл дня начинается с
+`t.market.reset_daily()` — это симулирует то, что в реальной симуляции
+делает `ConsumptionSystem.calculate_demand` (`daily_tick.gd:36`):
+сбрасывает `daily_demand` / `daily_demand_ind` / `daily_demand_pop` на
+маркете перед тем, как `production_system` добавит новый спрос. Без этого
+`daily_demand` аккумулируется по дням → `target_stock` растёт → цены
+оставаются на max → break-even gate блокирует consumer-tier industries.
+
+### 17.4. Метрики 365-day sim (seed 1337, до vs после C7)
+
+| Метрика | до C7 | после C7 | Δ |
+|---|---|---|---|
+| `total_money` start | 528 700 | 541 700 | +13 000 (9 новых industries) |
+| drift | 0.0000 | -0.0000 | conservation сохранён |
+| Player profit | +13 619 | +11 163 | **−2 456** |
+| AI Havana Sugar | +5 845 | **+10 242** | +4 397 |
+| AI Santiago Metals | +3 640 | +6 492 | +2 852 |
+| AI Carib Produce | −719 | +374 | +1 093 (стал прибыльным) |
+| Events | 375 | 346 | −29 |
+| Wars | 5/5/61 | 5/5/61 | 0 |
+
+**Что произошло:**
+- AI компании стали **гораздо** прибыльнее — Havana Sugar почти удвоил P/L.
+  Причина: AIBrain price-responsive, видит arbitrage между городами с
+  chain breaks (sugar в дефиците в tortuga/cap_francais/fort_de_france,
+  metal — в port_royal/willemstad, cloth — в port_royal/willemstad) и
+  активно возит intermediate + end goods.
+- Player profit **упал** — потому что AI забирает часть arbitrage, который
+  раньше доставался player's fixed route. Player route покупает sugar в
+  gibara (self-sufficient, sugar дёшев) и продаёт в port_royal (chain break,
+  sugar дорог). Но AI тоже видит этот arbitrage и конкурирует.
+- Carib Produce (раньше убыточная) теперь прибыльна — AIBrain нашёл
+  промежуточные arbitrage opportunities.
+
+Это и было целью regional specialization — проверить, насколько поменяется
+экономика. Экономика стала **конкурентнее** (AI умнее на chain breaks) и
+**специализированнее** (города явно делятся на producers и consumers).
+
+### 17.5. Что НЕ сделано в этом срезе (явно)
+
+- **Shipyard** — `lumber` остаётся tradeable intermediate без end-consumer.
+  Shipyard приходит в J2 (city infrastructure) — там `lumber → ship_parts →
+  Ship entity`.
+- **Split `metal_goods` → `tools` + `weapons`** — оставляем `metal_goods`
+  как end product. Разделение — позже, когда появятся state/military
+  demand (K1).
+- **Rename `textiles` → `clothing`** — оставляем `textiles`, просто добавили
+  `cloth` промежуточным. Меньше breaking changes.
+- **UI visualization of chains** — UI панель industries не показывает
+  chain tree. Позже — вместе с C2 buy/sell UI.
+- **Chain balance tweaks** — некоторые города могут голодать по end goods
+  (tortuga без sugar → rum дорогой → rich класс недоволен). Это ожидаемо
+  (audit's thesis). Тонкая balance-правка — позже, после наблюдения за
+  долгими прогонами.
+
+---

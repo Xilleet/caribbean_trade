@@ -69,6 +69,7 @@
 	"population_money": 14000,
 	"industries": [
 	  "sugar_plantation",
+	  "sugar_mill",
 	  "tobacco_plantation",
 	  "distillery",
 	  "corn_farm",
@@ -97,6 +98,7 @@
 	"population_money": 24000,
 	"industries": [
 	  "mine",
+	  "smelter",
 	  "corn_farm",
 	  "smithy",
       "bakery"
@@ -153,6 +155,7 @@
 	"population_money": 30000,
 	"industries": [
 	  "sugar_plantation",
+	  "sugar_mill",
 	  "tobacco_plantation",
 	  "distillery",
 	  "corn_farm",
@@ -181,6 +184,7 @@
 	"population_money": 18000,
 	"industries": [
 	  "sugar_plantation",
+	  "sugar_mill",
 	  "cotton_plantation",
 	  "smithy",
 	  "corn_farm",
@@ -237,6 +241,7 @@
 	"population_money": 20000,
 	"industries": [
 	  "mine",
+	  "smelter",
 	  "smithy",
 	  "lumber_camp",
 	  "corn_farm",
@@ -265,6 +270,7 @@
 	"population_money": 10000,
 	"industries": [
 	  "sugar_plantation",
+	  "sugar_mill",
 	  "cotton_plantation",
 	  "distillery",
 	  "corn_farm",
@@ -293,6 +299,7 @@
 	"population_money": 8000,
 	"industries": [
 	  "lumber_camp",
+	  "sawmill",
 	  "orchard",
 	  "hemp_farm",
 	  "corn_farm",
@@ -405,8 +412,10 @@
 	"population_money": 9000,
 	"industries": [
 	  "cotton_plantation",
+	  "weaver",
 	  "hemp_farm",
 	  "lumber_camp",
+	  "sawmill",
 	  "corn_farm",
       "bakery"
 	],

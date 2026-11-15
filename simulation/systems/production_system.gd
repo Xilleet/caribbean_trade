@@ -18,7 +18,11 @@ const GLUT_FACTOR: float = 2.5  # stop producing when output stock > 2.5 * targe
 # Stage 6: goods whose producers a drought cuts (raw crops/plantations).
 # Processed food (bread, rum) starves indirectly via its input, so it is not
 # listed here.
-const CROP_GOODS := ["corn", "fruits", "sugar", "tobacco", "hemp", "cotton"]
+# Stage C7: "sugar" replaced with "sugar_cane" — sugar is now a processed
+# intermediate (sugar_mill takes sugar_cane → sugar), and sugar_plantation
+# outputs sugar_cane. Drought still cuts the plantation (raw crop); sugar_mill
+# is not directly affected but starves when sugar_cane is in shortage.
+const CROP_GOODS := ["corn", "fruits", "sugar_cane", "tobacco", "hemp", "cotton"]
 
 var market_system: MarketSystem
 
