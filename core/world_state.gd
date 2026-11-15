@@ -202,6 +202,7 @@ func build_world() -> void:
 	var sd: Dictionary = ships_db["brigantine"]
 	var ship := Ship.new("ship_1", player.id, "brigantine",
 			float(sd["speed"]), float(sd["cargo_capacity"]), float(sd["upkeep_daily"]))
+	ship.passenger_capacity = float(sd.get("passenger_capacity", 0.0))
 	var home: Town = get_town("tortuga")
 	if home != null:
 		ship.pos = home.coords
@@ -228,6 +229,7 @@ func build_world() -> void:
 		var aship_id := "ship_%s" % String(cid)
 		var ai_ship := Ship.new(aship_id, ai_co.id, stype,
 				float(asd["speed"]), float(asd["cargo_capacity"]), float(asd["upkeep_daily"]))
+		ai_ship.passenger_capacity = float(asd.get("passenger_capacity", 0.0))
 		ai_ship.route_id = String(ad["route_id"])
 		ai_ship.auto_trade = true
 		var home_id: String = String(ad.get("home", ""))

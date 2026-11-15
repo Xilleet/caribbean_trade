@@ -1,75 +1,624 @@
 {
   "player_default": {
-	"ship_id": "ship_1",
-	"stops": ["tortuga", "gibara", "port_royal", "cayman"],
-	"rules": {
-	  "tortuga": [
-		{"good": "rum",   "action": "buy",  "threshold": 5, "max_qty": 35, "price_limit": 80,  "priority": 1}
-	  ],
-	  "gibara": [
-		{"good": "sugar",   "action": "buy",  "threshold": 5, "max_qty": 60, "price_limit": 40,  "priority": 1},
-		{"good": "tobacco", "action": "buy",  "threshold": 5, "max_qty": 30, "price_limit": 60,  "priority": 2},
-		{"good": "rum",     "action": "buy",  "threshold": 5, "max_qty": 35, "price_limit": 80,  "priority": 3}
-	  ],
-	  "port_royal": [
-		{"good": "rum",     "action": "sell", "threshold": 10, "max_qty": 40, "price_limit": 120, "priority": 1},
-		{"good": "sugar",   "action": "sell", "threshold": 10, "max_qty": 60, "price_limit": 70,  "priority": 2},
-		{"good": "tobacco", "action": "sell", "threshold": 10, "max_qty": 30, "price_limit": 100, "priority": 3}
-	  ],
-	  "cayman": [
-		{"good": "rum",   "action": "sell", "threshold": 10, "max_qty": 40, "price_limit": 120, "priority": 1},
-		{"good": "sugar", "action": "sell", "threshold": 10, "max_qty": 60, "price_limit": 70,  "priority": 2}
-	  ]
-	}
+    "ship_id": "ship_1",
+    "stops": [
+      "tortuga",
+      "gibara",
+      "port_royal",
+      "cayman"
+    ],
+    "rules": {
+      "tortuga": [
+        {
+          "good": "rum",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 35,
+          "price_limit": 80,
+          "priority": 1
+        }
+      ],
+      "gibara": [
+        {
+          "good": "sugar",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 60,
+          "price_limit": 40,
+          "priority": 1
+        },
+        {
+          "good": "tobacco",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 30,
+          "price_limit": 60,
+          "priority": 2
+        },
+        {
+          "good": "rum",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 35,
+          "price_limit": 80,
+          "priority": 3
+        }
+      ],
+      "port_royal": [
+        {
+          "good": "rum",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 40,
+          "price_limit": 120,
+          "priority": 1
+        },
+        {
+          "good": "sugar",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 60,
+          "price_limit": 70,
+          "priority": 2
+        },
+        {
+          "good": "tobacco",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 30,
+          "price_limit": 100,
+          "priority": 3
+        }
+      ],
+      "cayman": [
+        {
+          "good": "rum",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 40,
+          "price_limit": 120,
+          "priority": 1
+        },
+        {
+          "good": "sugar",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 60,
+          "price_limit": 70,
+          "priority": 2
+        }
+      ]
+    }
   },
-
   "ai_havana_loop": {
-	"ship_id": "ship_havana_sugar",
-	"stops": ["gibara", "tortuga", "port_royal"],
-	"rules": {
-	  "gibara": [
-		{"good": "sugar",   "action": "buy",  "threshold": 5,  "max_qty": 40, "price_limit": 45, "priority": 1},
-		{"good": "tobacco", "action": "buy",  "threshold": 5,  "max_qty": 20, "price_limit": 55, "priority": 2}
-	  ],
-	  "tortuga": [
-		{"good": "sugar",   "action": "sell", "threshold": 30, "max_qty": 40, "price_limit": 60, "priority": 1}
-	  ],
-	  "port_royal": [
-		{"good": "tobacco", "action": "sell", "threshold": 25, "max_qty": 20, "price_limit": 95, "priority": 1},
-		{"good": "sugar",   "action": "sell", "threshold": 30, "max_qty": 20, "price_limit": 65, "priority": 2}
-	  ]
-	}
+    "ship_id": "ship_havana_sugar",
+    "stops": [
+      "gibara",
+      "tortuga",
+      "port_royal"
+    ],
+    "rules": {
+      "gibara": [
+        {
+          "good": "sugar",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 40,
+          "price_limit": 45,
+          "priority": 1
+        },
+        {
+          "good": "tobacco",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 20,
+          "price_limit": 55,
+          "priority": 2
+        }
+      ],
+      "tortuga": [
+        {
+          "good": "sugar",
+          "action": "sell",
+          "threshold": 30,
+          "max_qty": 40,
+          "price_limit": 60,
+          "priority": 1
+        }
+      ],
+      "port_royal": [
+        {
+          "good": "tobacco",
+          "action": "sell",
+          "threshold": 25,
+          "max_qty": 20,
+          "price_limit": 95,
+          "priority": 1
+        },
+        {
+          "good": "sugar",
+          "action": "sell",
+          "threshold": 30,
+          "max_qty": 20,
+          "price_limit": 65,
+          "priority": 2
+        }
+      ]
+    }
   },
-
   "ai_metals_loop": {
-	"ship_id": "ship_santiago_metals",
-	"stops": ["santiago", "port_royal"],
-	"rules": {
-	  "santiago": [
-		{"good": "metal",       "action": "buy",  "threshold": 15, "max_qty": 35, "price_limit": 70,  "priority": 1},
-		{"good": "metal_goods", "action": "buy",  "threshold": 8,  "max_qty": 10, "price_limit": 160, "priority": 2}
-	  ],
-	  "port_royal": [
-		{"good": "metal",       "action": "sell", "threshold": 35, "max_qty": 35, "price_limit": 95,  "priority": 1},
-		{"good": "metal_goods", "action": "sell", "threshold": 18, "max_qty": 10, "price_limit": 230, "priority": 2}
-	  ]
-	}
+    "ship_id": "ship_santiago_metals",
+    "stops": [
+      "santiago",
+      "port_royal"
+    ],
+    "rules": {
+      "santiago": [
+        {
+          "good": "metal",
+          "action": "buy",
+          "threshold": 15,
+          "max_qty": 35,
+          "price_limit": 70,
+          "priority": 1
+        },
+        {
+          "good": "metal_goods",
+          "action": "buy",
+          "threshold": 8,
+          "max_qty": 10,
+          "price_limit": 160,
+          "priority": 2
+        }
+      ],
+      "port_royal": [
+        {
+          "good": "metal",
+          "action": "sell",
+          "threshold": 35,
+          "max_qty": 35,
+          "price_limit": 95,
+          "priority": 1
+        },
+        {
+          "good": "metal_goods",
+          "action": "sell",
+          "threshold": 18,
+          "max_qty": 10,
+          "price_limit": 230,
+          "priority": 2
+        }
+      ]
+    }
   },
-
   "ai_produce_loop": {
-	"ship_id": "ship_carib_produce",
-	"stops": ["cayman", "port_royal", "gibara"],
-	"rules": {
-	  "cayman": [
-		{"good": "fruits", "action": "buy",  "threshold": 10, "max_qty": 30, "price_limit": 24, "priority": 1}
-	  ],
-	  "port_royal": [
-		{"good": "fruits", "action": "sell", "threshold": 25, "max_qty": 30, "price_limit": 38, "priority": 1}
-	  ],
-	  "gibara": [
-		{"good": "fruits", "action": "sell", "threshold": 25, "max_qty": 20, "price_limit": 38, "priority": 1},
-		{"good": "sugar",  "action": "buy",  "threshold": 5,  "max_qty": 20, "price_limit": 45, "priority": 2}
-	  ]
-	}
+    "ship_id": "ship_carib_produce",
+    "stops": [
+      "cayman",
+      "port_royal",
+      "gibara"
+    ],
+    "rules": {
+      "cayman": [
+        {
+          "good": "fruits",
+          "action": "buy",
+          "threshold": 10,
+          "max_qty": 30,
+          "price_limit": 24,
+          "priority": 1
+        }
+      ],
+      "port_royal": [
+        {
+          "good": "fruits",
+          "action": "sell",
+          "threshold": 25,
+          "max_qty": 30,
+          "price_limit": 38,
+          "priority": 1
+        }
+      ],
+      "gibara": [
+        {
+          "good": "fruits",
+          "action": "sell",
+          "threshold": 25,
+          "max_qty": 20,
+          "price_limit": 38,
+          "priority": 1
+        },
+        {
+          "good": "sugar",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 20,
+          "price_limit": 45,
+          "priority": 2
+        }
+      ]
+    }
+  },
+  "ai_santo_domingo_loop": {
+    "ship_id": "ship_santo_domingo_trade",
+    "stops": [
+      "santo_domingo",
+      "san_juan",
+      "cap_francais",
+      "santo_domingo"
+    ],
+    "rules": {
+      "santo_domingo": [
+        {
+          "good": "sugar_cane",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 50,
+          "price_limit": 15,
+          "priority": 1
+        },
+        {
+          "good": "tobacco",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 30,
+          "price_limit": 55,
+          "priority": 2
+        }
+      ],
+      "san_juan": [
+        {
+          "good": "sugar_cane",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 50,
+          "price_limit": 25,
+          "priority": 1
+        },
+        {
+          "good": "tobacco",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 30,
+          "price_limit": 80,
+          "priority": 2
+        }
+      ],
+      "cap_francais": [
+        {
+          "good": "tobacco",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 30,
+          "price_limit": 75,
+          "priority": 1
+        }
+      ]
+    }
+  },
+  "ai_willemstad_loop": {
+    "ship_id": "ship_willemstad_trade",
+    "stops": [
+      "willemstad",
+      "cartagena",
+      "paramaribo",
+      "willemstad"
+    ],
+    "rules": {
+      "willemstad": [
+        {
+          "good": "cloth",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 30,
+          "price_limit": 65,
+          "priority": 1
+        },
+        {
+          "good": "lumber",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 20,
+          "price_limit": 50,
+          "priority": 2
+        }
+      ],
+      "cartagena": [
+        {
+          "good": "metal",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 40,
+          "price_limit": 90,
+          "priority": 1
+        },
+        {
+          "good": "cloth",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 30,
+          "price_limit": 85,
+          "priority": 2
+        }
+      ],
+      "paramaribo": [
+        {
+          "good": "cloth",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 30,
+          "price_limit": 80,
+          "priority": 1
+        },
+        {
+          "good": "lumber",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 20,
+          "price_limit": 70,
+          "priority": 2
+        }
+      ]
+    }
+  },
+  "packet_northern": {
+    "ship_id": "ship_northern_packet",
+    "stops": [
+      "tortuga",
+      "port_royal",
+      "nassau",
+      "cayman",
+      "tortuga"
+    ],
+    "rules": {
+      "tortuga": [
+        {
+          "good": "rum",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 15,
+          "price_limit": 80,
+          "priority": 1
+        },
+        {
+          "good": "hemp",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 30,
+          "priority": 2
+        }
+      ],
+      "port_royal": [
+        {
+          "good": "rum",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 15,
+          "price_limit": 120,
+          "priority": 1
+        },
+        {
+          "good": "metal_goods",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 180,
+          "priority": 2
+        }
+      ],
+      "nassau": [
+        {
+          "good": "lumber",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 15,
+          "price_limit": 50,
+          "priority": 1
+        },
+        {
+          "good": "fruits",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 24,
+          "priority": 2
+        }
+      ],
+      "cayman": [
+        {
+          "good": "lumber",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 15,
+          "price_limit": 70,
+          "priority": 1
+        },
+        {
+          "good": "fruits",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 10,
+          "price_limit": 38,
+          "priority": 2
+        },
+        {
+          "good": "bread",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 40,
+          "priority": 3
+        }
+      ]
+    }
+  },
+  "packet_southern": {
+    "ship_id": "ship_southern_packet",
+    "stops": [
+      "havana",
+      "gibara",
+      "santiago",
+      "cartagena",
+      "havana"
+    ],
+    "rules": {
+      "havana": [
+        {
+          "good": "sugar",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 15,
+          "price_limit": 40,
+          "priority": 1
+        },
+        {
+          "good": "rum",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 80,
+          "priority": 2
+        }
+      ],
+      "gibara": [
+        {
+          "good": "sugar",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 15,
+          "price_limit": 60,
+          "priority": 1
+        },
+        {
+          "good": "tobacco",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 55,
+          "priority": 2
+        }
+      ],
+      "santiago": [
+        {
+          "good": "metal",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 15,
+          "price_limit": 70,
+          "priority": 1
+        },
+        {
+          "good": "tobacco",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 10,
+          "price_limit": 80,
+          "priority": 2
+        }
+      ],
+      "cartagena": [
+        {
+          "good": "metal",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 15,
+          "price_limit": 95,
+          "priority": 1
+        },
+        {
+          "good": "metal_goods",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 180,
+          "priority": 2
+        }
+      ]
+    }
+  },
+  "packet_eastern": {
+    "ship_id": "ship_eastern_packet",
+    "stops": [
+      "san_juan",
+      "cap_francais",
+      "fort_de_france",
+      "bridgetown",
+      "san_juan"
+    ],
+    "rules": {
+      "san_juan": [
+        {
+          "good": "sugar",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 15,
+          "price_limit": 40,
+          "priority": 1
+        },
+        {
+          "good": "cloth",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 65,
+          "priority": 2
+        }
+      ],
+      "cap_francais": [
+        {
+          "good": "sugar",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 15,
+          "price_limit": 60,
+          "priority": 1
+        },
+        {
+          "good": "tobacco",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 55,
+          "priority": 2
+        }
+      ],
+      "fort_de_france": [
+        {
+          "good": "tobacco",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 10,
+          "price_limit": 75,
+          "priority": 1
+        },
+        {
+          "good": "fruits",
+          "action": "buy",
+          "threshold": 5,
+          "max_qty": 10,
+          "price_limit": 24,
+          "priority": 2
+        }
+      ],
+      "bridgetown": [
+        {
+          "good": "cloth",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 10,
+          "price_limit": 80,
+          "priority": 1
+        },
+        {
+          "good": "fruits",
+          "action": "sell",
+          "threshold": 10,
+          "max_qty": 10,
+          "price_limit": 38,
+          "priority": 2
+        }
+      ]
+    }
   }
 }

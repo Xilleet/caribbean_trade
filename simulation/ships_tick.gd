@@ -110,12 +110,17 @@ func _step_ship(ship: Ship) -> void:
 		var town: Town = WorldState.get_town(ship.current_town_id)
 		if town == null:
 			return
+		# Stage B2b: disembark passengers whose destination is this town.
+		_disembark_passengers(ship, town)
+		# Stage B2b: board waiting passengers going to the ship's next destination.
+		_board_passengers(ship, town)
 		if company.is_ai:
-			_ai_step(ship, company, town)
+			if ship.ship_type == "packet":
+				# Packet ships follow fixed ferry routes (not AIBrain).
+				_packet_step(ship, company, town)
+			else:
+				_ai_step(ship, company, town)
 		else:
-			# Player ship auto-trades its fixed route (headless sim, or before the
-			# player takes manual control). AIBrain is AI-only — the player's
-			# "brain" is the human reading the planning view.
 			var route: TradeRoute = WorldState.get_route(ship.route_id)
 			if route != null:
 				trade_system.execute_route(ship, company, town, route)
@@ -159,6 +164,103 @@ func _start_route(ship: Ship) -> void:
 	else:
 		ship.destination_id = route.stops[0]
 		ship.state = "sailing"
+
+## Stage B2b: packet ships follow fixed ferry routes (not AIBrain).
+## They visit the same stops in a loop, executing empty trade rules (just travel),
+## and serve as the primary passenger transport.
+func _packet_step(ship: Ship, company: Company, town: Town) -> void:
+	var route: TradeRoute = WorldState.get_route(ship.route_id)
+	if route != null:
+		# Execute trade rules (may be empty for packet routes — just travel).
+		trade_system.execute_route(ship, company, town, route)
+	if route != null and not route.stops.is_empty():
+		ship.destination_id = route.next_stop_after(ship.current_town_id)
+		ship.state = "sailing"
+
+## Stage B2b: disembark passengers whose destination is this town.
+## Moves Pop.count from ship → destination town's Pop (creates Pop if needed).
+func _disembark_passengers(ship: Ship, town: Town) -> void:
+	if ship.passengers.is_empty():
+		return
+	var to_remove: Array = []
+	for prof in ship.passengers.keys():
+		var count: float = float(ship.passengers[prof])
+		if count <= 0.0:
+			continue
+		# Find or create Pop of this profession in destination town.
+		var dest_pop: Pop = null
+		for p in town.pops:
+			if p.profession == String(prof):
+				dest_pop = p
+				break
+		if dest_pop != null:
+			dest_pop.count += count
+		else:
+			# Immigration creates a new Pop group in this town.
+			var cls: String = _class_for_profession(String(prof))
+			var new_pop := Pop.new("%s_pop_%s_imm" % [town.id, String(prof)], town.id, cls, String(prof), count)
+			town.pops.append(new_pop)
+		to_remove.append(prof)
+	for prof in to_remove:
+		ship.remove_passengers(String(prof), float(ship.passengers[prof]))
+
+## Stage B2b: board waiting passengers from town onto ship.
+## Passengers board only if the ship is going to their destination.
+## For packet ships: destination must be in route.stops.
+## For AIBrain/player: destination must match ship.destination_id (next port).
+func _board_passengers(ship: Ship, town: Town) -> void:
+	if town.waiting_passengers.is_empty() or ship.passenger_free() <= 0.0:
+		return
+	# Determine which destinations this ship can serve.
+	var serves_destinations: Array = []
+	if ship.ship_type == "packet":
+		var route: TradeRoute = WorldState.get_route(ship.route_id)
+		if route != null:
+			serves_destinations = route.stops.duplicate()
+	else:
+		# AIBrain/player ships: serve next destination only.
+		if ship.destination_id != "":
+			serves_destinations.append(ship.destination_id)
+	if serves_destinations.is_empty():
+		return
+	# Try to board each waiting passenger group.
+	var remaining: Array = []
+	for entry in town.waiting_passengers:
+		var prof: String = String(entry["profession"])
+		var count: float = float(entry["count"])
+		var dest: String = String(entry["destination"])
+		if count <= 0.0:
+			continue
+		if not serves_destinations.has(dest):
+			remaining.append(entry)
+			continue
+		# Ship goes to this destination — board up to passenger_free.
+		var board: float = min(count, ship.passenger_free())
+		if board <= 0.0:
+			remaining.append(entry)
+			continue
+		# Remove boarded count from origin Pop.
+		for p in town.pops:
+			if p.profession == prof:
+				p.count = max(0.0, p.count - board)
+				break
+		ship.add_passengers(prof, board)
+		# If some couldn't board (ship full), keep remainder in queue.
+		if board < count:
+			remaining.append({"profession": prof, "count": count - board, "destination": dest})
+	town.waiting_passengers = remaining
+
+## Map profession → social_class for immigration (creates new Pop with correct class).
+func _class_for_profession(prof: String) -> String:
+	match prof:
+		"laborer", "sailor", "servant":
+			return "poor"
+		"artisan", "smith", "merchant", "small_planter":
+			return "middle"
+		"planter", "official", "financier":
+			return "rich"
+		_:
+			return "poor"
 
 func _owner_of(ship: Ship) -> Company:
 	for c in WorldState.companies:

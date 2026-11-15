@@ -10,6 +10,7 @@ var production_system: ProductionSystem
 var consumption_system: ConsumptionSystem
 var finance_system: FinanceSystem
 var population_system: PopulationSystem
+var migration_system: MigrationSystem          # Stage B2b
 var trade_system: TradeSystem
 var event_system: EventSystem
 var war_system: WarSystem               # Stage A3
@@ -23,12 +24,14 @@ func _init() -> void:
 	consumption_system = ConsumptionSystem.new(market_system)
 	finance_system = FinanceSystem.new()
 	population_system = PopulationSystem.new()
+	migration_system = MigrationSystem.new()
 	trade_system = TradeSystem.new(market_system)
 	event_system = EventSystem.new(WorldState.event_rng, WorldState.events_db)
-	war_system = WarSystem.new(WorldState.war_rng)   # Stage A3
+	war_system = WarSystem.new(WorldState.war_rng)
 	daily_tick = DailyTick.new(market_system, production_system, consumption_system,
 			finance_system, WorldState.recipes)
-	weekly_tick = WeeklyTick.new(population_system, finance_system, WorldState.recipes, WorldState.rng)
+	weekly_tick = WeeklyTick.new(population_system, finance_system, migration_system,
+			WorldState.recipes, WorldState.rng)
 	ships_tick = ShipsTick.new(trade_system, market_system)
 
 func step_day() -> void:
@@ -54,6 +57,7 @@ func step_day() -> void:
 		step_week()
 
 func step_week() -> void:
+	weekly_tick.reset_weekly()
 	for t in WorldState.towns:
 		weekly_tick.run(t)
 	# Stage 6: roll new events AFTER the weekly economy ticks, so a

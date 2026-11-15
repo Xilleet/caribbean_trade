@@ -28,6 +28,12 @@ var external_balance: float = 0.0  # net money flow to/from the wider Caribbean
 var port_capacity: float = 100.0
 var state_id: String = ""        # Stage A2: which colonial power owns this town
 
+# Stage B2b: migration — passengers waiting at port for transport to a
+# better town. Each entry: {"profession": String, "count": float,
+# "destination": String}. Filled by MigrationSystem (weekly), consumed by
+# ShipsTick when ships dock and board passengers.
+var waiting_passengers: Array = []
+
 # Stage B2: per-profession wage rate (multiplier on recipe.daily_wages).
 # Keyed by profession string ("laborer", "artisan", "smith", etc.).
 # Default 1.0 = base wages. Adjusted weekly by PopulationSystem.adjust_wages

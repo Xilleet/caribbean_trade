@@ -19,5 +19,40 @@
     "ship_type": "sloop",
     "route_id": "ai_produce_loop",
     "home": "cayman"
+  },
+  "santo_domingo_trade": {
+    "name": "Santo Domingo Trading",
+    "money": 3500,
+    "ship_type": "brigantine",
+    "route_id": "ai_santo_domingo_loop",
+    "home": "santo_domingo"
+  },
+  "willemstad_trade": {
+    "name": "Willemstad Trading",
+    "money": 3500,
+    "ship_type": "brigantine",
+    "route_id": "ai_willemstad_loop",
+    "home": "willemstad"
+  },
+  "northern_packet": {
+    "name": "Northern Packet Line",
+    "money": 5000,
+    "ship_type": "packet",
+    "route_id": "packet_northern",
+    "home": "tortuga"
+  },
+  "southern_packet": {
+    "name": "Southern Packet Line",
+    "money": 5000,
+    "ship_type": "packet",
+    "route_id": "packet_southern",
+    "home": "havana"
+  },
+  "eastern_packet": {
+    "name": "Eastern Packet Line",
+    "money": 5000,
+    "ship_type": "packet",
+    "route_id": "packet_eastern",
+    "home": "san_juan"
   }
 }

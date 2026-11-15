@@ -14,6 +14,12 @@ var speed: float = 14.0
 var cargo_capacity: float = 60.0
 var cargo_used: float = 0.0
 var cargo: Dictionary = {}        # good_id -> qty
+# Stage B2b: passenger transport. Separate from cargo — ships can carry
+# both goods and people. Pop.count moves from origin town to destination
+# town via ships. Pop.count is NOT in total_money, so drift=0 preserved.
+var passenger_capacity: float = 0.0
+var passenger_used: float = 0.0
+var passengers: Dictionary = {}   # profession -> count aboard
 var pos: Vector2 = Vector2.ZERO
 var destination_id: String = ""
 var current_town_id: String = ""
@@ -66,4 +72,30 @@ func remove_cargo(good_id: String, qty: float) -> float:
 	if float(cargo[good_id]) <= 0.0:
 		cargo.erase(good_id)
 	cargo_used -= actual
+	return actual
+
+# Stage B2b: passenger methods. Passengers are keyed by profession string
+# (e.g., "laborer", "smith"). Pop.count moves origin → ship → destination.
+
+func passenger_free() -> float:
+	return passenger_capacity - passenger_used
+
+func passenger_qty(prof: String) -> float:
+	return float(passengers.get(prof, 0.0))
+
+func add_passengers(prof: String, qty: float) -> void:
+	if qty <= 0.0:
+		return
+	passengers[prof] = passenger_qty(prof) + qty
+	passenger_used += qty
+
+func remove_passengers(prof: String, qty: float) -> float:
+	var have: float = passenger_qty(prof)
+	var actual: float = min(have, qty)
+	if actual <= 0.0:
+		return 0.0
+	passengers[prof] = have - actual
+	if float(passengers[prof]) <= 0.0:
+		passengers.erase(prof)
+	passenger_used -= actual
 	return actual

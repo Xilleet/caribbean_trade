@@ -1275,6 +1275,101 @@ famine triggers. Может быть too extreme — если захочем б�
 
 ---
 
+
+## B2b — organic migration via ships
+
+**Коммит:** (pending push)
+
+Migration system where Pops physically travel on ships between towns — no
+teleporting. Adds passenger transport to ships, new "packet" ship type,
+3 packet AI lines (fixed ferry routes), 2 new cargo AI ships, and
+MigrationSystem (weekly push/pull computation).
+
+### Что изменено
+
+**Ship changes (`entities/ship.gd`):**
+- +`passenger_capacity`, `passenger_used`, `passengers: Dictionary`
+- +`passenger_free()`, `add_passengers(prof, qty)`, `remove_passengers(prof, qty)`
+
+**Town changes (`entities/town.gd`):**
+- +`waiting_passengers: Array` — queue of `{profession, count, destination}`
+
+**New ship type (`data/ships.json`):**
+- "packet": cargo=30, passengers=80, speed=16, upkeep=12, cost=3000
+- All existing ships got `passenger_capacity` field (sloop=10, brigantine=20, fluyt=30)
+
+**New AI companies (`data/ai_companies.json` + `data/routes.json`):**
+- 3 packet lines (fixed ferry routes, trade rules for income):
+  - Northern: Tortuga → Port Royal → Nassau → Cayman (loop)
+  - Southern: Havana → Gibara → Santiago → Cartagena (loop)
+  - Eastern: San Juan → Cap-Francais → Fort-de-France → Bridgetown (loop)
+- 2 cargo AI ships:
+  - Santo Domingo Trading (brigantine, Santo Domingo → San Juan → Cap-Francais)
+  - Willemstad Trading (brigantine, Willemstad → Cartagena → Paramaribo)
+
+**NEW `simulation/systems/migration_system.gd`:**
+- `compute_migration(towns)` — weekly: for each Pop, computes push factor
+  (unemployment × low wages × low satisfaction), finds best destination
+  (highest wage × satisfaction), adds to `town.waiting_passengers`.
+- MIGRATION_RATE = 0.02 (2% of stressed population per week)
+- `_cap_waiting_queue()` — prevents infinite buildup (keeps last 5 entries per profession)
+
+**`simulation/ships_tick.gd` — boarding/disembark integration:**
+- `_disembark_passengers(ship, town)` — on dock: ship.passengers → destination Pop.count (creates Pop if immigration)
+- `_board_passengers(ship, town)` — on dock: town.waiting_passengers → ship (if ship goes to their destination)
+- `_packet_step(ship, company, town)` — packet ships use fixed route (not AIBrain)
+- Packet ships: destination must be in route.stops
+- AIBrain/player ships: destination must match ship.destination_id (opportunistic)
+
+**`simulation/weekly_tick.gd` + `simulation_engine.gd`:**
+- MigrationSystem created in SimulationEngine._init
+- WeeklyTick calls `migration_system.compute_migration(WorldState.towns)` once per week
+- `reset_weekly()` flag ensures migration runs once per week (not per-town)
+
+### Тесты
+
+**78 тестов (72 + 6)**, все PASS:
+- + test_migration: migration_pressure_computed, no_migration_when_prosperous,
+  packet_boards_passengers, ship_disembarks_passengers, pop_count_conserved_through_cycle,
+  drift_zero_with_migration.
+
+### Метрики 365-day sim (seed 1337)
+
+```
+Money: start=438700 end=438700 drift=0.0000 (conserved ✓)
+Population: total=8136 (poor=6155 middle=1653 rich=327) avg_satisfaction=0.779
+Player: +11553
+AI Havana Sugar: +3786  AI Santiago: +66  AI Carib: +676
+AI Santo Domingo: -747  AI Willemstad: -3499 (struggling)
+AI Northern Packet: 5000→197 (-4803, survived barely)
+AI Southern Packet: 5000→2975 (-2025, survived)
+AI Eastern Packet: 5000→13094 (+8094, profitable!)
+```
+
+**Migration active:** `drift_zero_with_migration` test confirms migration_active=true.
+Pops move between towns via packet ships.
+
+**Packet line balance:** Eastern Packet is profitable (great sugar/cloth/tobacco
+arbitrage on its route). Northern and Southern struggle — their routes have less
+profitable trade goods. Future fix: tune packet route trade rules, or add ticket
+income (B3 — Pop.savings → ship company).
+
+### Conservation
+
+- Pop.count НЕ в `total_money()` → drift=0 preserved
+- No ticket cost in B2b (Pop.savings stub) — migration is free
+- Future B3: ticket cost (Pop.savings → ship company.money) — income for packet lines
+
+### Что НЕ сделано
+
+- Ticket cost — free migration (B3 adds Pop.savings → ticket income)
+- Per-Pop satisfaction — still 1.0 stub (B3)
+- Migration timeout — passengers wait forever (cap at 5 entries per profession)
+- UI — no passenger display in game_ui
+- Packet route balance — Northern/Southern struggle, need route tuning or ticket income
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start
