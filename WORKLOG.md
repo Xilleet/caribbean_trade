@@ -1205,6 +1205,76 @@ avg_satisfaction: 0.747 → 0.718    -0.029 (slight drop)
 
 ---
 
+
+## B2.1 — balance fix + wage_rate output
+
+**Коммит:** (pending push)
+
+Balance tweaks after B2 analysis + diagnostic output improvement.
+
+### Что изменено
+
+- `core/world_state.gd` — laborer ratio 60%→40%, sailor 20%→30%, servant
+  20%→30%. Раньше 60% poor были laborers → massive unemployment (86-98%).
+  Теперь 40% → unemployment 62-94% (лучше, но всё ещё surplus).
+- `data/towns.json` — все population counts halved (poor/middle/rich).
+  population_money тоже halved. Меньше людей → меньше surplus → лучше
+  satisfaction → less famine.
+- `main.gd` — wage_rate per town в sim_summary.txt:
+  `wages: laborer=0.50 artisan=0.95 smith=0.65 ...` (sorted by profession).
+  Теперь видно actual wage dynamics для balancing.
+- `tests/test_pops.gd` — updated profession_distribution bounds для
+  нового 40/30/30 ratio.
+
+### Метрики 365-day sim (seed 1337, B2 vs B2.1)
+
+```
+                    B2              B2.1            Δ
+Population:         14884           8047            -6837 (halved)
+avg_satisfaction:   0.718           0.776           +0.058 (improved!)
+Player profit:      +14241          +9719           -4522 (smaller economy)
+Events:             361             115             -246
+  famine:           247             4               -243 (less food pressure)
+drift:              0.0000          0.0000          ✓
+```
+
+**Laborer unemployment improved:**
+- Gibara: 85.9% → 61.6% (-24.3pp)
+- Tortuga: 87.1% → 69.9% (-17.2pp)
+- Havana: 95.6% → 91.0% (-4.6pp)
+- Port Royal: 97.8% → 93.9% (-3.9pp)
+
+**Wage rates visible** (new in sim_summary):
+- Mostly 0.50 (WAGE_MIN) — surplus labor для большинства professions.
+- Exceptions (scarce professions): artisan=0.95 in one town, smith=0.65
+  in another. Это где wage dynamics реально работает.
+- Остальные на min — historically accurate для Caribbean (massive labor
+  surplus, low wages).
+
+**Famine drop (247→4):** halved population → less food demand → less
+famine triggers. Может быть too extreme — если захочем больше famine,
+можно понизить `famine.trigger_stock_ratio` в `data/events.json`.
+
+### TODO: non-industrial professions need income sources
+
+После B2, `Pop.employed_count` только отслеживает industrial employment
+(industries с matching `profession_required`). Но эти professions НЕ
+работают в industries — у них 100% "unemployment" by design:
+
+| Profession | Current status | Needs (future) |
+|---|---|---|
+| sailor | 0 employed (no industry needs sailor) | Ship crew hiring — ships нанимают sailor Pops |
+| servant | 0 employed (domestic, not industrial) | Household service income — от middle/rich Pops |
+| merchant | 0 employed (trade, not industry) | Trading company income — от trade margins |
+| planter | 0 employed (landowner) | Plantation dividends/rents — от owned plantations |
+| official | 0 employed (government) | Tax-funded salary — от state.treasury |
+| financier | 0 employed (banking) | Interest income — от H2 credit system |
+
+**Cosmetic fix (не сделано):** в output показывать "n/a" вместо "100.0%"
+для professions без matching industry. Пока documented — не блокер.
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

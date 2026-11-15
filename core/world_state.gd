@@ -115,10 +115,12 @@ func build_world() -> void:
 		# for labour market hiring; B1 just sets the data model.
 		# Money-neutral: Pop.count is NOT in total_money().
 		var ti: int = towns.size()
-		# Poor stratum: laborer 60%, sailor 20%, servant 20%
-		t.pops.append(Pop.new("%s_pop_laborer" % town_id, town_id, "poor", "laborer", poor_total * 0.60))
-		t.pops.append(Pop.new("%s_pop_sailor" % town_id, town_id, "poor", "sailor", poor_total * 0.20))
-		t.pops.append(Pop.new("%s_pop_servant" % town_id, town_id, "poor", "servant", poor_total * 0.20))
+		# Poor stratum: laborer 40%, sailor 30%, servant 30%
+		# (B2.1: was 60/20/20 — caused 86-98% laborer unemployment
+		# because too many laborers vs available farm/plantation jobs)
+		t.pops.append(Pop.new("%s_pop_laborer" % town_id, town_id, "poor", "laborer", poor_total * 0.40))
+		t.pops.append(Pop.new("%s_pop_sailor" % town_id, town_id, "poor", "sailor", poor_total * 0.30))
+		t.pops.append(Pop.new("%s_pop_servant" % town_id, town_id, "poor", "servant", poor_total * 0.30))
 		# Middle stratum: artisan 40%, smith 15%, merchant 25%, small_planter 20%
 		t.pops.append(Pop.new("%s_pop_artisan" % town_id, town_id, "middle", "artisan", middle_total * 0.40))
 		t.pops.append(Pop.new("%s_pop_smith" % town_id, town_id, "middle", "smith", middle_total * 0.15))

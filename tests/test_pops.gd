@@ -199,8 +199,9 @@ func test_profession_distribution_correct() -> bool:
 	var sailor_ratio: float = sailor / poor_total if poor_total > 0 else 0.0
 	var artisan_ratio: float = artisan / middle_total if middle_total > 0 else 0.0
 	var planter_ratio: float = planter / rich_total if rich_total > 0 else 0.0
-	var passed: bool = laborer_ratio > 0.40 and laborer_ratio < 0.80 and \
-		sailor_ratio > 0.10 and sailor_ratio < 0.30 and \
+	# B2.1: laborer ratio changed 60%→40%, sailor 20%→30%. Updated bounds.
+	var passed: bool = laborer_ratio > 0.25 and laborer_ratio < 0.55 and \
+		sailor_ratio > 0.20 and sailor_ratio < 0.40 and \
 		artisan_ratio > 0.25 and artisan_ratio < 0.55 and \
 		planter_ratio > 0.30 and planter_ratio < 0.70
 	_report("profession_distribution_correct", passed,

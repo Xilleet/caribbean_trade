@@ -587,6 +587,14 @@ func _write_summary(money_start: float, money_end: float, company_start: float) 
 					 p.employed_count, unemp_rate * 100.0])
 		f.store_line("  pop_money=%.1f  market_fund=%.1f  external_balance=%.1f" %
 				[t.population_money, t.market.fund, t.external_balance])
+		# Stage B2.1: wage_rate per profession (for diagnostics/balancing).
+		if t.wage_rate.size() > 0:
+			var wage_parts: PackedStringArray = PackedStringArray()
+			var profs_sorted: Array = t.wage_rate.keys()
+			profs_sorted.sort()
+			for prof in profs_sorted:
+				wage_parts.append("%s=%.2f" % [String(prof), float(t.wage_rate[prof])])
+			f.store_line("  wages: %s" % ", ".join(wage_parts))
 		f.store_line("  industries:")
 		for ind in t.industries:
 			f.store_line("    %-18s workers=%.1f money=%.1f weekly_profit=%.1f" %
