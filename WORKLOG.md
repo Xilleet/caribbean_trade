@@ -1459,6 +1459,50 @@ struggle but ticket income helps. Carib Produce went bankrupt (3500→5).
 
 ---
 
+
+## B3.1 — profession-aware migration destination
+
+**Коммит:** (pending push)
+
+Implements the TODO stub from B3: Pops check if destination has UNMET DEMAND
+for their profession before migrating there.
+
+### Что изменено
+
+- `simulation/systems/migration_system.gd`:
+  - NEW `_has_unmet_demand(town, prof, recipes)` — checks if town has
+    industries requiring this profession with `target_workers > available
+    supply` (shortage). Returns true if migration would likely result in
+    employment.
+  - `compute_migration` now has two-track destination search:
+    1. **Demand track**: among towns with unmet demand for this profession,
+       pick best (highest wage * satisfaction). Pops migrate WHERE THEY CAN
+       FIND WORK.
+    2. **Fallback track**: if NO town has unmet demand (e.g., sailor,
+       servant, merchant — no industries hire them), fall back to old
+       behavior (any town with better wage * satisfaction).
+  - Prefers demand track over fallback.
+
+### Результаты
+
+All 14 test suites PASS (78 tests). 365-day sim: drift=0.0000, same metrics
+as B3 (population 9691, satisfaction 0.835). Results identical because
+`wage_rate` already reflects demand (high wage = high demand) — the
+profession-aware check confirms what the wage signal already indicated.
+
+The safety net will matter when C2 (enterprise expansion) is added: if player
+builds a new smithy in a town, `_has_unmet_demand` detects the new shortage
+→ smiths from other towns migrate there. Without this check, smiths might
+go to a town with high wages but no smithy (wouldn't find work).
+
+### Что НЕ сделано
+
+- Per-profession consumption baskets — needs more goods in the stack first
+  (user decision: not enough goods variety yet to differentiate sailor vs
+  servant consumption). TODO when D2 (new goods) is done.
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start
