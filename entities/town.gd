@@ -28,6 +28,13 @@ var external_balance: float = 0.0  # net money flow to/from the wider Caribbean
 var port_capacity: float = 100.0
 var state_id: String = ""        # Stage A2: which colonial power owns this town
 
+# Stage B2: per-profession wage rate (multiplier on recipe.daily_wages).
+# Keyed by profession string ("laborer", "artisan", "smith", etc.).
+# Default 1.0 = base wages. Adjusted weekly by PopulationSystem.adjust_wages
+# based on demand/supply ratio. Clamped to [0.5, 3.0].
+# Used in FinanceSystem.charge_wages: actual_wages = recipe.daily_wages * wage_rate[prof].
+var wage_rate: Dictionary = {}
+
 # Stage B1: POPs array — source of truth for population. Each town has
 # 10 Pop groups (3 poor + 4 middle + 3 rich) created in WorldState.build_world.
 # poor/middle/rich below are computed getters over this array.
@@ -95,4 +102,16 @@ func total_population() -> float:
 
 func labor_force() -> float:
 	# Labor force = poor + middle (excludes rich), at 50% participation.
+	# Legacy method — kept for backward compat (test_pops uses it).
+	# B2 update_employment uses get_available_workers(prof) instead.
 	return (poor + middle) * 0.5
+
+## Stage B2: total workforce available for a given profession.
+## Returns sum of Pop.count for all Pops with matching profession.
+## Used by PopulationSystem.update_employment to cap hiring per-profession.
+func get_available_workers(prof: String) -> float:
+	var s: float = 0.0
+	for p in pops:
+		if p.profession == prof:
+			s += p.count
+	return s

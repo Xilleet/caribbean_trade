@@ -38,6 +38,7 @@ var _ui: Control = null
 # --- headless verification state (windowed mode ignores these) ---
 var _day: int = 0
 var _snapshots: Array[Dictionary] = []
+var _pop_snapshots: Array[Dictionary] = []   # Stage B1.5: weekly Pop state per town per profession
 var _company_traj: Array[Dictionary] = []
 var _money_start: float = 0.0
 var _company_start: float = 0.0
@@ -180,8 +181,33 @@ func _finish_headless() -> void:
 		rel_parts.append("%s=%.0f" % [k, float(WorldState.state_relations[k])])
 	print("Relations: %s" % ", ".join(rel_parts))
 	_write_daily_csv(_snapshots)
+	_write_pops_csv(_pop_snapshots)
 	_write_company_csv(_company_traj)
 	_write_summary(_money_start, money_end, _company_start)
+	var total_pop: float = 0.0
+	var total_poor: float = 0.0
+	var total_middle: float = 0.0
+	var total_rich: float = 0.0
+	var prof_totals: Dictionary = {}
+	var sat_weighted_sum: float = 0.0
+	for t in WorldState.towns:
+		var tpop: float = t.total_population()
+		total_pop += tpop
+		total_poor += t.poor
+		total_middle += t.middle
+		total_rich += t.rich
+		sat_weighted_sum += t.satisfaction * tpop
+		for p in t.pops:
+			prof_totals[p.profession] = float(prof_totals.get(p.profession, 0.0)) + p.count
+	var avg_sat: float = sat_weighted_sum / total_pop if total_pop > 0.0 else 0.0
+	print("Population: total=%.0f (poor=%.0f middle=%.0f rich=%.0f)  avg_satisfaction=%.3f" %
+			[total_pop, total_poor, total_middle, total_rich, avg_sat])
+	var prof_keys: Array = prof_totals.keys()
+	prof_keys.sort_custom(func(a, b): return float(prof_totals[a]) > float(prof_totals[b]))
+	var prof_parts: PackedStringArray = PackedStringArray()
+	for k in prof_keys:
+		prof_parts.append("%s=%.0f" % [String(k), float(prof_totals[k])])
+	print("  by profession: %s" % ", ".join(prof_parts))
 	print("Done: %d days simulated." % SIM_DAYS_HEADLESS)
 	print("Output in: %s" % ProjectSettings.globalize_path(OUT_DIR))
 	# Self-terminate in headless mode so verification runs are script-friendly.
@@ -418,10 +444,18 @@ func _capture(day: int, out: Array) -> void:
 				"stock": e.stock, "price": e.current_price,
 				"demand": e.daily_demand, "supply": e.daily_supply,
 			})
+		# Stage B1.5: capture Pop state per town per profession for sim_pops.csv.
+		for p in t.pops:
+			_pop_snapshots.append({
+				"day": day, "town": t.name, "profession": p.profession,
+				"social_class": p.social_class, "count": p.count,
+				"satisfaction": p.satisfaction, "employed_count": p.employed_count,
+			})
 
 func _print_snapshot(day: int) -> void:
 	print("\n--- snapshot day %d ---" % day)
-	print("%-11s %-11s %8s %8s %8s %8s" % ["town", "good", "stock", "price", "demand", "supply"])
+	print("%-11s %8s %8s %8s %8s %8s   %-11s %8s %8s" %
+			["town", "pop", "poor", "mid", "rich", "sat", "good", "stock", "price"])
 	for t in WorldState.towns:
 		var shown: int = 0
 		for v in t.market.entries.values():
@@ -430,11 +464,17 @@ func _print_snapshot(day: int) -> void:
 			var interesting: bool = e.stock > 0.01 or e.daily_supply > 0.01 or e.daily_demand > 0.01
 			if not interesting:
 				continue
-			print("%-11s %-11s %8.1f %8.2f %8.2f %8.2f" %
-					[t.name, e.good_id, e.stock, e.current_price, e.daily_demand, e.daily_supply])
+			if shown == 0:
+				print("%-11s %8.0f %8.0f %8.0f %8.0f %8.3f   %-11s %8.1f %8.2f" %
+						[t.name, t.total_population(), t.poor, t.middle, t.rich, t.satisfaction,
+						 e.good_id, e.stock, e.current_price])
+			else:
+				print("%-11s %43s   %-11s %8.1f %8.2f" %
+						["", "", e.good_id, e.stock, e.current_price])
 			shown += 1
 		if shown == 0:
-			print("%-11s (no active goods)" % t.name)
+			print("%-11s %8.0f %8.0f %8.0f %8.0f %8.3f   (no active goods)" %
+					[t.name, t.total_population(), t.poor, t.middle, t.rich, t.satisfaction])
 
 func _write_daily_csv(snapshots: Array) -> void:
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
@@ -459,6 +499,22 @@ func _write_company_csv(traj: Array) -> void:
 		f.store_line("%d,%.3f,%.3f,%s,%s" %
 				[int(s["day"]), float(s["money"]), float(s["cargo_used"]),
 				 String(s["state"]), String(s["town"])])
+	f.close()
+
+## Stage B1.5: weekly Pop state per town per profession → sim_pops.csv.
+## Columns: day,town,profession,social_class,count,satisfaction,employed_count
+## 15 towns × 10 professions × ~52 weeks ≈ 7800 rows.
+func _write_pops_csv(snapshots: Array) -> void:
+	var f := FileAccess.open(OUT_DIR + "sim_pops.csv", FileAccess.WRITE)
+	if f == null:
+		push_error("cannot write pops CSV")
+		return
+	f.store_line("day,town,profession,social_class,count,satisfaction,employed_count")
+	for s in snapshots:
+		f.store_line("%d,%s,%s,%s,%.3f,%.3f,%.3f" %
+					[int(s["day"]), String(s["town"]), String(s["profession"]),
+					 String(s["social_class"]), float(s["count"]),
+					 float(s["satisfaction"]), float(s["employed_count"])])
 	f.close()
 
 func _write_summary(money_start: float, money_end: float, company_start: float) -> void:
@@ -521,10 +577,16 @@ func _write_summary(money_start: float, money_end: float, company_start: float) 
 	f.store_line("")
 	for t in WorldState.towns:
 		f.store_line("=== %s ===" % t.name)
-		f.store_line("  population: poor=%.0f middle=%.0f rich=%.0f (total %.0f)" %
-				[t.poor, t.middle, t.rich, t.total_population()])
-		f.store_line("  pop_money=%.1f  market_fund=%.1f  external_balance=%.1f  satisfaction=%.3f" %
-				[t.population_money, t.market.fund, t.external_balance, t.satisfaction])
+		f.store_line("  population: poor=%.0f middle=%.0f rich=%.0f (total %.0f)  satisfaction=%.3f" %
+				[t.poor, t.middle, t.rich, t.total_population(), t.satisfaction])
+		f.store_line("  Pops (%d):" % t.pops.size())
+		for p in t.pops:
+			var unemp_rate: float = (1.0 - p.employed_count / p.count) if p.count > 0.0 else 0.0
+			f.store_line("    %-12s/%-14s count=%7.1f sat=%.3f employed=%6.1f (%.1f%%)" %
+					[p.social_class, p.profession, p.count, p.satisfaction,
+					 p.employed_count, unemp_rate * 100.0])
+		f.store_line("  pop_money=%.1f  market_fund=%.1f  external_balance=%.1f" %
+				[t.population_money, t.market.fund, t.external_balance])
 		f.store_line("  industries:")
 		for ind in t.industries:
 			f.store_line("    %-18s workers=%.1f money=%.1f weekly_profit=%.1f" %

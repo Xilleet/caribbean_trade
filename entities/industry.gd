@@ -16,6 +16,11 @@ var id: String
 var recipe_id: String
 var town_id: String
 var workers: float = 0.0
+# Stage B2: target workforce (what the industry WANTS to hire, before
+# profession-pool scaling). Set by PopulationSystem.update_employment
+# Phase 1, read by adjust_wages to compute demand vs supply.
+# If target > available workers of that profession → wage rises.
+var target_workers: float = 0.0
 var money: float = 0.0
 var efficiency: float = 1.0
 # Stage C1 (minimal): owner of the industry. Routes dividends in

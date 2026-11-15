@@ -1,16 +1,28 @@
 class_name PopulationSystem
 extends RefCounted
 
-## Weekly population + employment dynamics.
+## Weekly population + employment + wage dynamics.
 ##
 ## Satisfaction (set daily by [ConsumptionSystem]) drives growth:
 ##   sat > 0.8  -> +1%/week   (boom + immigration)
 ##   sat < 0.5  -> -2%/week    (famine + emigration)
 ##   otherwise  -> mild drift around neutral
 ##
-## Employment: each industry hires/fires one worker per week based on its
-## weekly profit, capped by the town's labour force. A labour shortage scales
-## every industry's workers down uniformly.
+## Stage B2 Employment: profession-based hiring. Each industry has a
+## [param profession_required] (from recipe). Industries hire from Pops
+## of matching profession. If multiple industries compete for the same
+## profession pool and demand > supply, they're scaled down proportionally.
+## [param Pop.employed_count] is updated to track how many of each Pop
+## are employed (for B3 unemployment/satisfaction).
+##
+## Stage B2 Wages: [method adjust_wages] runs after employment. For each
+## profession, if demand (employed workers) > supply (Pop.count), wage_rate
+## rises; if demand < supply, it falls. [param FinanceSystem.charge_wages]
+## multiplies [param recipe.daily_wages] by [param Town.wage_rate[prof]].
+
+const WAGE_ADJUSTMENT_RATE: float = 0.05   # 5% per week toward equilibrium
+const WAGE_MIN: float = 0.5                # never below 50% of base wages
+const WAGE_MAX: float = 3.0                # never above 300% of base wages
 
 func calculate_satisfaction(t: Town) -> float:
 	return t.satisfaction
@@ -24,27 +36,108 @@ func update_population(t: Town, _rng: RandomNumberGenerator) -> void:
 		growth = -0.02
 	else:
 		growth = (sat - 0.65) * 0.02
-	# Stage B1: poor/middle/rich are now read-only getters (sum Pop.count
-	# by stratum). set_class_count distributes the new total proportionally
-	# across all Pops of that stratum — so all professions in a stratum
-	# grow/shrink together, preserving the ratio.
+	# Stage B1: poor/middle/rich are read-only getters (sum Pop.count by
+	# stratum). set_class_count distributes proportionally, preserving
+	# profession ratios within each stratum.
 	t.set_class_count("poor", max(0.0, t.poor * (1.0 + growth)))
 	t.set_class_count("middle", max(0.0, t.middle * (1.0 + growth * 1.1)))
 	t.set_class_count("rich", max(0.0, t.rich * (1.0 + growth * 0.5)))
 
+## Stage B2: profession-based employment. Four phases:
+##   1. Each industry sets target_workers based on weekly_profit (same logic
+##      as before — hire if profitable, fire if losing money).
+##   2. Group industries by profession_required, compute demand (sum of
+##      target_workers) vs supply (sum of Pop.count for that profession).
+##   3. If demand > supply for a profession, scale all industries of that
+##      profession down proportionally. Otherwise industries get their target.
+##   4. Update Pop.employed_count: for each Pop, sum the workers of all
+##      industries requiring that Pop's profession.
 func update_employment(t: Town, recipes: Dictionary) -> void:
-	var labor_force: float = t.labor_force()
-	var total_jobs: float = 0.0
+	# Phase 1: set target_workers per industry (based on weekly_profit).
+	# target_workers is what the industry WANTS — actual workers may be
+	# lower if the profession pool is too small (Phase 3 scales down).
+	# adjust_wages reads target_workers to detect shortages.
 	for ind in t.industries:
 		var recipe: Dictionary = recipes[ind.recipe_id]
 		var req: float = float(recipe.get("workers_required", 1.0))
+		var target: float
 		if ind.weekly_profit > 0.0:
-			ind.workers = min(req * 1.5, ind.workers + 1.0)
+			target = min(req * 1.5, ind.workers + 1.0)
 		elif ind.weekly_profit < 0.0:
-			ind.workers = max(req * 0.3, ind.workers - 1.0)
-		total_jobs += ind.workers
-	# Labour shortage: scale everyone down to the available force.
-	if total_jobs > labor_force and total_jobs > 0.0:
-		var s: float = labor_force / total_jobs
+			target = max(req * 0.3, ind.workers - 1.0)
+		else:
+			target = ind.workers
+		ind.target_workers = target
+
+	# Phase 2: group by profession, compute demand vs supply.
+	var demand_by_prof: Dictionary = {}   # prof -> sum of target_workers
+	var supply_by_prof: Dictionary = {}   # prof -> sum of Pop.count
+	for ind in t.industries:
+		var recipe: Dictionary = recipes[ind.recipe_id]
+		var prof: String = String(recipe.get("profession_required", "laborer"))
+		demand_by_prof[prof] = float(demand_by_prof.get(prof, 0.0)) + ind.target_workers
+	for p in t.pops:
+		var prof: String = p.profession
+		supply_by_prof[prof] = float(supply_by_prof.get(prof, 0.0)) + p.count
+
+	# Phase 3: assign actual workers. If demand > supply, scale down.
+	for ind in t.industries:
+		var recipe: Dictionary = recipes[ind.recipe_id]
+		var prof: String = String(recipe.get("profession_required", "laborer"))
+		var demand: float = float(demand_by_prof.get(prof, 0.0))
+		var supply: float = float(supply_by_prof.get(prof, 0.0))
+		if demand > supply and demand > 0.0:
+			ind.workers = ind.target_workers * (supply / demand)
+		else:
+			ind.workers = ind.target_workers
+
+	# Phase 4: update Pop.employed_count — reset then accumulate.
+	for p in t.pops:
+		p.employed_count = 0.0
+	for ind in t.industries:
+		var recipe: Dictionary = recipes[ind.recipe_id]
+		var prof: String = String(recipe.get("profession_required", "laborer"))
+		for p in t.pops:
+			if p.profession == prof:
+				p.employed_count += ind.workers
+				break   # only 1 Pop per profession per town (B1 design)
+
+## Stage B2: adjust per-profession wage rates based on demand/supply.
+## Called after update_employment in WeeklyTick.run.
+## For each profession present in the town:
+##   ratio = employed_workers / total_pop_count
+##   ratio > 1.0 → shortage → wages rise
+##   ratio < 1.0 → surplus → wages fall
+## Wage rate is clamped to [WAGE_MIN, WAGE_MAX] and adjusted by
+## WAGE_ADJUSTMENT_RATE per week (5% of the gap toward equilibrium).
+func adjust_wages(t: Town, recipes: Dictionary) -> void:
+	# Collect all professions that have either demand (industries) or supply (Pops).
+	var all_profs: Dictionary = {}   # prof -> true (set)
+	for ind in t.industries:
+		var recipe: Dictionary = recipes[ind.recipe_id]
+		var prof: String = String(recipe.get("profession_required", "laborer"))
+		all_profs[prof] = true
+	for p in t.pops:
+		all_profs[p.profession] = true
+
+	for prof in all_profs.keys():
+		var prof_s: String = String(prof)
+		# Demand = sum of ind.target_workers for industries requiring this
+		# profession. Using target (not actual workers) because actual may
+		# have been scaled down by Phase 3 — the wage signal should reflect
+		# what industries WANT, not what they got.
+		var demand: float = 0.0
 		for ind in t.industries:
-			ind.workers *= s
+			var recipe: Dictionary = recipes[ind.recipe_id]
+			if String(recipe.get("profession_required", "laborer")) == prof_s:
+				demand += ind.target_workers
+		# Supply = sum of Pop.count for Pops of this profession.
+		var supply: float = 0.0
+		for p in t.pops:
+			if p.profession == prof_s:
+				supply += p.count
+		# Compute ratio and adjust wage_rate.
+		var ratio: float = demand / supply if supply > 0.0 else 1.0
+		var current: float = float(t.wage_rate.get(prof_s, 1.0))
+		var new_rate: float = clamp(current + (ratio - 1.0) * WAGE_ADJUSTMENT_RATE, WAGE_MIN, WAGE_MAX)
+		t.wage_rate[prof_s] = new_rate

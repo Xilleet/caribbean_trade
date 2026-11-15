@@ -1117,6 +1117,94 @@ demand patterns. Экономика осталась стабильной (drift
 
 ---
 
+
+## B1.5 + B2 — POP metrics output + labour market (profession-based hiring + wages)
+
+**Коммит:** (pending push)
+
+Два среза в одном: B1.5 (POP metrics в sim output) re-applied + B2 (labour
+market). B1.5 был diagnostic-only (main.gd output extension), B2 добавляет
+profession-based hiring + wage dynamics. Вместе — видно как Pops реагируют
+на B2 employment/wage dynamics через sim_pops.csv.
+
+### Что изменено
+
+**B1.5 (re-applied) — `main.gd`:**
+- `_pop_snapshots` array — weekly Pop state per town per profession
+- `_write_pops_csv()` — `sim_pops.csv`: day,town,profession,social_class,
+  count,satisfaction,employed_count (7800 rows)
+- `_write_summary()` — per-town Pop breakdown с count/sat/employed/unemp%
+- `_finish_headless()` — Population console line + by-profession breakdown
+- `_print_snapshot()` — pop/poor/mid/rich/sat в town header
+
+**B2 — labour market:**
+- `entities/industry.gd` — +`target_workers: float` field (what industry
+  WANTS to hire, before profession-pool scaling)
+- `entities/town.gd` — +`wage_rate: Dictionary` (profession → multiplier
+  on recipe.daily_wages), +`get_available_workers(prof)` method
+- `simulation/systems/population_system.gd` — `update_employment`
+  rewritten (4 phases: target → demand/supply by profession → scale →
+  employed_count). NEW `adjust_wages()` — weekly wage_rate adjustment
+  based on target-demand vs supply, ±5%/week, clamped [0.5, 3.0].
+- `simulation/systems/finance_system.gd` — `charge_wages` multiplies
+  `recipe.daily_wages * wage_rate[prof]`
+- `simulation/weekly_tick.gd` — calls `adjust_wages` after
+  `update_employment`
+- `tests/test_labour.gd` + `.tscn` (NEW) — 7 тестов
+
+### Тесты
+
+**72 теста (65 + 7)**, все PASS:
+- test_market 5, test_trade 2, test_manual_trade 5, test_ai_traders 8,
+  test_events 4, test_states 6, test_pirates 4, test_wars 11,
+  test_diplomacy 4, test_ownership 3, test_chains 5, test_pops 8,
+  **test_labour 7 (NEW)**.
+
+### Метрики 365-day sim (seed 1337, до vs после B2)
+
+```
+                       до B2 (B1)    после B2       Δ
+Money: start=541700  → 541700        0 (conservation сохранён)
+drift:  0.0000       → 0.0000        ✓
+Player: +13243       → +14241        +998
+AI Havana Sugar:  +7166 → +3666     -3500 (wages в sugar towns выросли?)
+AI Santiago Metals: +6663 → +8301   +1638 (wages в iron towns упали?)
+AI Carib Produce:   -330 → -216     +114 (slight improvement)
+Events: 351          → 361          +10
+Wars:   5/5/61       → 5/5/61       0
+Population: 14866    → 14884        +18 (basically same)
+avg_satisfaction: 0.747 → 0.718    -0.029 (slight drop)
+```
+
+**Employed counts (day 364, из sim_pops.csv):**
+- Santiago (self-sufficient iron): laborer 517→21 employed (95.9% unemp),
+  smith 26→6 (76.9%)
+- Port Royal (2 chain breaks): laborer 448→10 (97.8%), smith 35→11 (68.9%)
+- Havana (self-sufficient sugar): laborer 926→41 (95.6%), smith 53→0 (100%)
+- Gibara (self-sufficient sugar): artisan 57→31 (45.4% — best employment)
+- Tortuga (chain break): artisan 32→23 (28.7% — best employment rate)
+
+**Key observations:**
+- Massive laborer surplus everywhere (86-98% unemployment) — 60% of poor
+  stratum are laborers, but only ~10-40 hired per town. Wage for laborer
+  should be very low (surplus → wage_rate < 1.0).
+- Smith scarcity in Havana/Gibara/Tortuga (no smithy → 100% smith unemp).
+- Profession-based hiring работает: employed_count populated correctly,
+  matches industry.workers sums.
+
+### Что НЕ сделано (явно — для следующих срезов)
+
+- Migration — Pops не двигаются между городами (B2b или позже).
+- Per-Pop satisfaction — `Pop.satisfaction` = 1.0 stub, `town.satisfaction`
+  остаётся aggregate (B3).
+- Per-Pop savings — `Pop.savings` = 0.0 stub (B3).
+- Per-Pop consumption — `consumption_system` читает aggregate by stratum (B3).
+- sim_pops.csv satisfaction column всё ещё 1.000 — B3 наполнит реальными
+  значениями (per-Pop satisfaction based on wages vs cost of living).
+- UI — не показывает wage_rate или employed_count (позже).
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

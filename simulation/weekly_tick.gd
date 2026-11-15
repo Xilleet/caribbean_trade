@@ -24,4 +24,9 @@ func run(t: Town) -> void:
 		ind.money_start_of_week = ind.money
 	finance_system.distribute_profits(t, recipes)
 	population_system.update_population(t, rng)
+	# Stage B2: profession-based hiring + wage adjustment.
+	# update_employment hires from Pops by profession_required, then
+	# adjust_wages updates Town.wage_rate based on demand/supply per profession.
+	# Order matters: employment sets actual workers → wages react to that.
 	population_system.update_employment(t, recipes)
+	population_system.adjust_wages(t, recipes)

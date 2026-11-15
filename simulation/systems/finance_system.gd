@@ -8,7 +8,12 @@ extends RefCounted
 ## money-starved industry can restart the moment prices turn profitable again
 ## (no death spiral from fixed idle cost).
 ##
-## Money flow:
+## Stage B2: wages are multiplied by [param Town.wage_rate[profession]],
+## which is adjusted weekly by [param PopulationSystem.adjust_wages] based
+## on demand/supply for each profession. A labour shortage (demand > supply)
+## → wage_rate > 1.0 → industries pay more. Surplus → wage_rate < 1.0 → less.
+##
+## Money flow (unchanged direction, only amounts change):
 ##   wages      -> industry.money down, population_money up
 ##   maintenance-> industry.money down, market.fund up (local services)
 
@@ -16,7 +21,10 @@ func charge_wages(t: Town, recipes: Dictionary) -> void:
 	for ind in t.industries:
 		var recipe: Dictionary = recipes[ind.recipe_id]
 		var cap: float = float(recipe.get("daily_capacity", 1.0))
-		var wages_daily: float = float(recipe.get("daily_wages", 0.0))
+		# Stage B2: multiply base wages by per-profession wage_rate.
+		var prof: String = String(recipe.get("profession_required", "laborer"))
+		var wage_rate: float = float(t.wage_rate.get(prof, 1.0))
+		var wages_daily: float = float(recipe.get("daily_wages", 0.0)) * wage_rate
 		var maint_daily: float = float(recipe.get("daily_maintenance", 0.0))
 		var util: float = ind.produced_batches / cap if cap > 0.0 else 0.0
 		var wages: float = wages_daily * util
