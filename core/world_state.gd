@@ -104,19 +104,40 @@ func build_world() -> void:
 		var t := Town.new(town_id, td["name"])
 		t.coords = Vector2(float(td["coords"][0]), float(td["coords"][1]))
 		var pop: Dictionary = td["population"]
-		t.poor = float(pop["poor"])
-		t.middle = float(pop["middle"])
-		t.rich = float(pop["rich"])
+		var poor_total: float = float(pop["poor"])
+		var middle_total: float = float(pop["middle"])
+		var rich_total: float = float(pop["rich"])
 		t.state_id = String(td.get("state", ""))   # Stage A2: colonial ownership
-		# Seeded per-class population perturbation — this is what makes
-		# world_seed actually change the run. Money-neutral: population counts
-		# are NOT in total_money(), so the conservation invariant still holds.
+		# Stage B1 (combined): create 10 Pop groups per town — 3 poor,
+		# 4 middle, 3 rich — with profession labels. Initial counts
+		# distributed by ratio (laborer 60% of poor, artisan 40% of
+		# middle, planter 50% of rich, etc.). B2 will use professions
+		# for labour market hiring; B1 just sets the data model.
+		# Money-neutral: Pop.count is NOT in total_money().
+		var ti: int = towns.size()
+		# Poor stratum: laborer 60%, sailor 20%, servant 20%
+		t.pops.append(Pop.new("%s_pop_laborer" % town_id, town_id, "poor", "laborer", poor_total * 0.60))
+		t.pops.append(Pop.new("%s_pop_sailor" % town_id, town_id, "poor", "sailor", poor_total * 0.20))
+		t.pops.append(Pop.new("%s_pop_servant" % town_id, town_id, "poor", "servant", poor_total * 0.20))
+		# Middle stratum: artisan 40%, smith 15%, merchant 25%, small_planter 20%
+		t.pops.append(Pop.new("%s_pop_artisan" % town_id, town_id, "middle", "artisan", middle_total * 0.40))
+		t.pops.append(Pop.new("%s_pop_smith" % town_id, town_id, "middle", "smith", middle_total * 0.15))
+		t.pops.append(Pop.new("%s_pop_merchant" % town_id, town_id, "middle", "merchant", middle_total * 0.25))
+		t.pops.append(Pop.new("%s_pop_small_planter" % town_id, town_id, "middle", "small_planter", middle_total * 0.20))
+		# Rich stratum: planter 50%, official 30%, financier 20%
+		t.pops.append(Pop.new("%s_pop_planter" % town_id, town_id, "rich", "planter", rich_total * 0.50))
+		t.pops.append(Pop.new("%s_pop_official" % town_id, town_id, "rich", "official", rich_total * 0.30))
+		t.pops.append(Pop.new("%s_pop_financier" % town_id, town_id, "rich", "financier", rich_total * 0.20))
+		# Seeded per-Pop population perturbation — this is what makes
+		# world_seed actually change the run. Each Pop gets its own phase
+		# (prof_idx) so different professions perturb independently.
+		# Money-neutral: population counts are NOT in total_money().
 		# A plain sin() formula (not the RNG) so the Python reference
 		# (econ_ref.py) reproduces it bit-for-bit with the same seed.
-		var ti: int = towns.size()
-		t.poor   *= 1.0 + 0.20 * sin(float(world_seed) + float(ti) * 7.0 + 0.0)
-		t.middle *= 1.0 + 0.20 * sin(float(world_seed) + float(ti) * 7.0 + 3.0)
-		t.rich   *= 1.0 + 0.20 * sin(float(world_seed) + float(ti) * 7.0 + 6.0)
+		var prof_idx: int = 0
+		for p in t.pops:
+			p.count *= 1.0 + 0.20 * sin(float(world_seed) + float(ti) * 7.0 + float(prof_idx))
+			prof_idx += 1
 		t.population_money = float(td["population_money"])
 
 		# Every town gets a market entry for every good (price exists everywhere,

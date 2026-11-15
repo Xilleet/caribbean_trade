@@ -44,9 +44,9 @@ func test_sugar_chain_produces_rum_end_to_end() -> bool:
 	WorldState.reset()
 	var t := Town.new("t_sug", "SugarChainTown")
 	t.population_money = 5000.0
-	t.poor = 100.0
-	t.middle = 30.0
-	t.rich = 5.0
+	t.set_class_count("poor", 100.0)
+	t.set_class_count("middle", 30.0)
+	t.set_class_count("rich", 5.0)
 	WorldState.towns.append(t)
 	# Set up markets for all goods in the chain
 	for g in ["sugar_cane", "sugar", "rum"]:
@@ -100,9 +100,9 @@ func test_iron_chain_produces_metal_goods_end_to_end() -> bool:
 	WorldState.reset()
 	var t := Town.new("t_iron", "IronChainTown")
 	t.population_money = 5000.0
-	t.poor = 100.0
-	t.middle = 30.0
-	t.rich = 5.0
+	t.set_class_count("poor", 100.0)
+	t.set_class_count("middle", 30.0)
+	t.set_class_count("rich", 5.0)
 	WorldState.towns.append(t)
 	for g in ["iron_ore", "metal", "metal_goods"]:
 		var base: float = 35.0 if g == "iron_ore" else (83.0 if g == "metal" else 200.0)
@@ -148,9 +148,9 @@ func test_textile_chain_uses_cloth_intermediate() -> bool:
 	WorldState.reset()
 	var t := Town.new("t_tex", "TextileChainTown")
 	t.population_money = 5000.0
-	t.poor = 100.0
-	t.middle = 30.0
-	t.rich = 5.0
+	t.set_class_count("poor", 100.0)
+	t.set_class_count("middle", 30.0)
+	t.set_class_count("rich", 5.0)
 	WorldState.towns.append(t)
 	for g in ["cotton", "cloth", "textiles"]:
 		var base: float = 45.0 if g == "cotton" else (80.0 if g == "cloth" else 150.0)
@@ -195,9 +195,9 @@ func test_lumber_chain_produces_lumber() -> bool:
 	WorldState.reset()
 	var t := Town.new("t_lum", "LumberChainTown")
 	t.population_money = 3000.0
-	t.poor = 60.0
-	t.middle = 20.0
-	t.rich = 5.0
+	t.set_class_count("poor", 60.0)
+	t.set_class_count("middle", 20.0)
+	t.set_class_count("rich", 5.0)
 	WorldState.towns.append(t)
 	for g in ["wood", "lumber"]:
 		var base: float = 33.0 if g == "wood" else 65.0
@@ -243,9 +243,9 @@ func test_chain_breaks_when_intermediate_missing() -> bool:
 	WorldState.reset()
 	var t := Town.new("t_brk", "ChainBreakTown")
 	t.population_money = 5000.0
-	t.poor = 100.0
-	t.middle = 30.0
-	t.rich = 5.0
+	t.set_class_count("poor", 100.0)
+	t.set_class_count("middle", 30.0)
+	t.set_class_count("rich", 5.0)
 	WorldState.towns.append(t)
 	# Markets: sugar_cane, sugar, rum — but NO sugar_mill in this town.
 	# sugar_cane will pile up (no consumer), sugar will stay at 0 (no producer),

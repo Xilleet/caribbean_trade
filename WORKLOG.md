@@ -1036,6 +1036,87 @@ regional specialization.
 
 ---
 
+## B1 (combined) — POPs data model
+
+**Коммит:** (pending push)
+
+«предприятия + рынок труда + производственные
+цепочки». Превращает `poor/middle/rich` (3 скаляра) в массив POP-групп —
+Victoria 3-inspired - 10 Pop типов на город.
+
+### Что изменено
+
+- `entities/pop.gd` (NEW) — `Pop` class с полями: `id, town_id,
+  social_class, profession, count, savings, living_standard, satisfaction,
+  migration_propensity, employed_count`. Все поля кроме `count` — stubs
+  для B2-B7.
+- `entities/town.gd` — рефактор population:
+  - `var pops: Array[Pop] = []` — source of truth
+  - `poor/middle/rich` → read-only computed getters (sum `Pop.count` by
+    stratum). Без setter.
+  - NEW `set_class_count(cls, v)` — распределяет `v` пропорционально по
+    существующим Pop этого stratum; если нет — создаёт default Pop.
+  - `total_population()`, `labor_force()` — unchanged semantics.
+- `core/world_state.gd` build_world — создаёт 10 Pop на город:
+  - Poor: laborer (60%), sailor (20%), servant (20%)
+  - Middle: artisan (40%), smith (15%), merchant (25%), small_planter (20%)
+  - Rich: planter (50%), official (30%), financier (20%)
+  - Seed perturbation per-Pop: `p.count *= 1.0 + 0.20 * sin(seed +
+    town_idx*7 + prof_idx)` — каждый Pop получает свою фазу.
+- `simulation/systems/population_system.gd` — `t.poor = max(...)` →
+  `t.set_class_count("poor", max(...))`. Reads getter (sum), multiplies,
+  writes via set_class_count (distributes proportionally).
+- `data/recipes.json` — добавлен `"profession_required"` stub во все 16
+  рецептов: `laborer` (8 рецептов), `artisan` (7), `smith` (1). B1 не
+  использует для найма — stub для B2.
+- `tests/test_chains.gd` — `t.poor = X` → `t.set_class_count("poor", X)`
+  (5 тестов обновлены, без semantic changes).
+- `tests/test_pops.gd` + `.tscn` (NEW) — 8 тестов data model.
+
+### Тесты
+
+**65 тестов (57 + 8)**, все PASS:
+- test_market 5, test_trade 2, test_manual_trade 5, test_ai_traders 8,
+  test_events 4, test_states 6, test_pirates 4, test_wars 11,
+  test_diplomacy 4, test_ownership 3, test_chains 5, **test_pops 8 (NEW)**.
+
+### Метрики (365 дней, seed 1337, до vs после B1)
+
+```
+                       до B1 (C7)    после B1       Δ
+Money: start=541700  → start=541700  0 (Pop.count не в total_money)
+drift:  -0.0000      → -0.0000       conservation сохранён
+Player: +11163       → +13243        +2080
+AI Havana Sugar:  +10242 → +7166    -3076
+AI Santiago Metals: +6492 → +6663    +171
+AI Carib Produce:   +374 → -330     -704 (стал слегка убыточным)
+Events: 346          → 351          +5
+Wars:   5/5/61       → 5/5/61       0
+```
+
+**Что произошло:** Player profit вырос на 2080, AI Havana Sugar упал на
+3076. Причина: per-Pop seed perturbation (с `prof_idx` фазой) даёт другую
+population distribution, чем старый per-class perturbation. Это меняет
+demand patterns. Экономика осталась стабильной (drift=0, все компании
+прибыльны кроме Carib Produce -330 = незначительно).
+
+### Что НЕ сделано
+
+- Labour market logic — industries не нанимают по `profession_required`
+  (B2). Сейчас `population_system.update_employment` нанимает generic
+  workers без фильтра по профессии.
+- Per-Pop satisfaction — `Pop.satisfaction` = 1.0 stub (B2).
+- Per-Pop savings — `Pop.savings` = 0.0 stub, `town.population_money`
+  остаётся aggregate (B3).
+- Migration — `Pop.migration_propensity` = 0.0 stub (B2).
+- Per-Pop consumption — `consumption_system` читает aggregate by stratum,
+  не per-Pop. Разные профессии внутри stratum пока имеют одинаковые
+  корзины. B2/B3 могут добавить per-profession consumption.
+- UI — UI не показывает Pops, продолжает читать `t.poor/middle/rich`
+  (computed getters).
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start

@@ -1208,7 +1208,7 @@ Distant Worlds по автономности и самостоятельной �
 
 | # | Фича | Ориентиры | Механика | Объём |
 |---|---|---|---|---|
-| **B1** | Профессии и классы | Victoria 3 (явно назван в README §1.1) — POPs с profession, qualification; реальная социальная структура 17 в. | Превратить `poor/middle/rich` (3 скаляра) в массив POP-групп с полями: profession, count, savings, living_standard, satisfaction, migration_propensity. | ~400 строк рефакторинг |
+| **B1** ✅ | Профессии и классы | Victoria 3 (явно назван в README §1.1) — POPs с profession, qualification; реальная социальная структура 17 в. | `Pop` class + `Town.pops` array (10 Pop на город: 3 poor + 4 middle + 3 rich). `poor/middle/rich` → read-only getters (sum Pop.count by stratum). `set_class_count` distributes proportionally. `profession_required` stub в 16 рецептах. B2 will use professions for hiring. | ~250 строк + 8 тестов (test_pops) |
 | **B2** | Рынок труда и зарплаты | Victoria 3 — конкуренция за рабочие места; реальная labour market | Industries нанимают из локального пула по профессии. Зарплаты растут при дефиците, падают при безработице. Миграция из городов с низкой satisfaction/wages. | ~250 строк поверх B1 |
 | **B3** | Сбережения и уровень жизни | Victoria 3 SoL = потребление / потребности; реальная динамика накопления | POPs копят savings, тратят на корзину по приоритету. SoL = satisfied / desired. SoL > threshold → рост, < → упадок и миграция. | ~150 строк поверх B1 |
 | **B4** | Социальная мобильность | Victoria 3 — promotion/demotion между классами; реальный social mobility в колониях | При высоком SoL и сбережениях бедные → средний класс. При безработице средний → бедные. | ~120 строк поверх B1+B3 |

@@ -1130,3 +1130,156 @@ headless sim: `start=541700.0 end=541700.0 drift=-0.0000`. `total_money`
   долгими прогонами.
 
 ---
+
+## 18. B1 (combined) — POPs data model
+
+B1 — третий срез по audit-favourite «предприятия + рынок труда +
+производственные цепочки». Превращает `poor/middle/rich` (3 скаляра) в
+массив POP-групп с profession labels — Victoria 3-inspired. **B1 combined**
+одним срезом (вместо B1a → B1b) — сразу 10 Pop типов на город.
+
+### 18.1. Что добавлено
+
+**NEW `entities/pop.gd`** — `Pop` class с полями:
+- `id`, `town_id` — идентификация
+- `social_class` — stratum: `"poor"` | `"middle"` | `"rich"`
+- `profession` — `"laborer"` | `"sailor"` | `"servant"` | `"artisan"` |
+  `"smith"` | `"merchant"` | `"small_planter"` | `"planter"` | `"official"` |
+  `"financier"`
+- `count` — численность группы (source of truth)
+- `savings` — stub для B3 (currently 0)
+- `living_standard` — stub для B3 (currently 1.0)
+- `satisfaction` — stub для B2 (currently 1.0)
+- `migration_propensity` — stub для B2 (currently 0.0)
+- `employed_count` — stub для B2 (currently 0.0)
+
+**`entities/town.gd`** — рефактор population:
+- `var pops: Array[Pop] = []` — source of truth
+- `poor/middle/rich` → **read-only computed getters** (sum `Pop.count` by
+  stratum). Без setter — компилятор не даст написать `t.poor = X`.
+- NEW `set_class_count(cls, v)` — распределяет `v` пропорционально по
+  существующим Pop этого stratum (preserving profession ratios); если
+  Pop'ов этого stratum нет — создаёт один default Pop.
+- `total_population()` — sum всех `Pop.count`
+- `labor_force()` — `(poor + middle) * 0.5` (unchanged semantics, rich
+  excluded)
+
+**`core/world_state.gd` build_world** — создаёт **10 Pop на город**:
+- Poor stratum: `laborer` (60%), `sailor` (20%), `servant` (20%)
+- Middle stratum: `artisan` (40%), `smith` (15%), `merchant` (25%),
+  `small_planter` (20%)
+- Rich stratum: `planter` (50%), `official` (30%), `financier` (20%)
+- Seed perturbation **per-Pop**: `p.count *= 1.0 + 0.20 * sin(seed +
+  town_idx*7 + prof_idx)` — каждый профессиональный Pop получает свою фазу,
+  детерминизм сохранён.
+
+**`simulation/systems/population_system.gd`** — `t.poor = max(...)` →
+`t.set_class_count("poor", max(...))`. Это читает getter (sum), умножает,
+пишет через `set_class_count` (распределяет пропорционально). Тот же
+эффект, что iterация по Pops с ростом — все Pops stratum растут вместе,
+ratio preserved.
+
+**`data/recipes.json`** — добавлен `"profession_required"` stub во все 16
+рецептов:
+- `laborer`: lumber_camp, mine, cotton_plantation, hemp_farm,
+  sugar_plantation, orchard, corn_farm, tobacco_plantation (8 рецептов)
+- `artisan`: distillery, textile_mill, bakery, sugar_mill, smelter, weaver,
+  sawmill (7 рецептов)
+- `smith`: smithy (1 рецепт)
+
+B1 НЕ использует `profession_required` для найма — это stub для B2.
+
+### 18.2. Почему drift=0 сохранился
+
+`Pop.count` **не входит** в `WorldState.total_money()` — population counts
+никогда не влияли на conservation (это было так и до B1, когда `poor`/
+`middle`/`rich` были scalar fields). B1 — это data model refactor:
+- Никаких новых money flows
+- `population_money` остаётся town-level aggregate (не per-Pop yet — это B3)
+- Industries по-прежнему нанимают через `population_system.update_employment`
+  (логика не изменилась — только `update_population` стал писать через
+  `set_class_count`)
+
+drift=0 верифицирован на 365-day sim: `start=541700 end=541700 drift=-0.0000`.
+`total_money` не изменился (541700 — тот же, что после C7), потому что
+Pop.count не в сумме.
+
+### 18.3. Тесты после B1
+
+Всего **65 тестов (57 + 8)**, все PASS:
+- test_market 5, test_trade 2, test_manual_trade 5, test_ai_traders 8,
+  test_events 4, test_states 6, test_pirates 4, test_wars 11,
+  test_diplomacy 4, test_ownership 3, test_chains 5, **test_pops 8 (NEW)**.
+
+`test_pops.tscn` проверяет:
+1. `pops_created_with_10_types_per_town` — build_world, каждый из 15 городов
+   имеет 10 Pop (3 poor + 4 middle + 3 rich).
+2. `poor_middle_rich_aggregate_from_pops` — getters возвращают sum by stratum.
+3. `set_class_count_distributes_proportionally` — set_class_count("poor",
+   1000) с 3 poor Pops (300/100/100) → 600/200/200 (ratio preserved).
+4. `set_class_count_creates_default_if_empty` — set_class_count на пустом
+   town создаёт default Pop (laborer/artisan/elite).
+5. `total_population_sums_pops` — total = sum всех Pop.count.
+6. `labor_force_excludes_rich` — (poor + middle) * 0.5.
+7. `population_growth_scales_all_pops_in_stratum` — update_population →
+   все 3 poor Pops растут на 1% (ratio preserved), не только первый.
+8. `profession_distribution_correct` — laborer ~54% of poor, artisan ~47%
+   of middle, planter ~44% of rich (в пределах ±25% от base 60/40/50 с
+   учётом seed perturbation).
+
+### 18.4. Метрики 365-day sim (seed 1337, до vs после B1)
+
+| Метрика | до B1 (C7) | после B1 | Δ |
+|---|---|---|---|
+| `total_money` start | 541 700 | 541 700 | 0 (Pop.count не в сумме) |
+| drift | -0.0000 | -0.0000 | conservation сохранён |
+| Player profit | +11 163 | +13 243 | +2 080 |
+| AI Havana Sugar | +10 242 | +7 166 | −3 076 |
+| AI Santiago Metals | +6 492 | +6 663 | +171 |
+| AI Carib Produce | +374 | −330 | −704 (стал слегка убыточным) |
+| Events | 346 | 351 | +5 |
+| Wars | 5/5/61 | 5/5/61 | 0 |
+
+**Что произошло:** Player profit вырос на 2080, AI Havana Sugar упал на
+3076. Причина: per-Pop seed perturbation (с `prof_idx` фазой) даёт другую
+population distribution, чем старый per-class perturbation. Это меняет
+demand patterns — player's fixed route (tortuga→gibara→port_royal→cayman)
+случайно оказался лучше aligned с новой demand. AI Havana Sugar наоборот.
+
+Это **expected** — B1 меняет data model, что меняет population distribution,
+что меняет demand. Экономика осталась стабильной (drift=0, все компании
+прибыльны кроме Carib Produce которая -330 = незначительно).
+
+### 18.5. Что НЕ сделано в этом срезе (явно)
+
+- **Labour market logic** — industries не нанимают по `profession_required`
+  (B2). Сейчас `population_system.update_employment` нанимает generic
+  workers без фильтра по профессии.
+- **Per-Pop satisfaction** — `Pop.satisfaction` = 1.0 stub,
+  `town.satisfaction` остаётся aggregate (B2).
+- **Per-Pop savings** — `Pop.savings` = 0.0 stub, `town.population_money`
+  остаётся aggregate (B3).
+- **Migration** — `Pop.migration_propensity` = 0.0 stub (B2).
+- **Per-Pop consumption** — `consumption_system` читает `t.poor/middle/rich`
+  (aggregate by stratum), не per-Pop. Разные профессии внутри stratum
+  пока имеют одинаковые корзины. B2/B3 могут добавить per-profession
+  consumption.
+- **UI** — UI не показывает Pops, продолжает читать `t.poor/middle/rich`
+  (computed getters). UI changes — позже.
+
+### 18.6. Почему B1 combined одним срезом (а не B1a → B1b)
+
+Изначально я предложил B1a (минимальный, 3 Pop на город) → B1b (расширение
+до 8-10 профессий). Пользователь предложил сразу combined — «раз уж делаем,
+чтобы уже был фундамент». Преимущества combined:
+- Один срез вместо двух — меньше overhead
+- Сразу богатая модель — B2 (labour market) сможет нанимать по профессии
+  без ожидания B1b
+- Архитектура проверяется с реальной нагрузкой (10 Pop × 15 городов = 150
+  Pop объектов в симуляции — доказывает, что performance OK)
+
+Риск combined был: больше изменений за раз, выше риск сломать drift=0.
+Mitigated: все 65 тестов зелёные, drift=0 на 365-day sim, детерминизм
+сохранён (per-Pop perturbation с prof_idx фазой).
+
+---

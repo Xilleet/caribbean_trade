@@ -24,9 +24,13 @@ func update_population(t: Town, _rng: RandomNumberGenerator) -> void:
 		growth = -0.02
 	else:
 		growth = (sat - 0.65) * 0.02
-	t.poor = max(0.0, t.poor * (1.0 + growth))
-	t.middle = max(0.0, t.middle * (1.0 + growth * 1.1))
-	t.rich = max(0.0, t.rich * (1.0 + growth * 0.5))
+	# Stage B1: poor/middle/rich are now read-only getters (sum Pop.count
+	# by stratum). set_class_count distributes the new total proportionally
+	# across all Pops of that stratum — so all professions in a stratum
+	# grow/shrink together, preserving the ratio.
+	t.set_class_count("poor", max(0.0, t.poor * (1.0 + growth)))
+	t.set_class_count("middle", max(0.0, t.middle * (1.0 + growth * 1.1)))
+	t.set_class_count("rich", max(0.0, t.rich * (1.0 + growth * 0.5)))
 
 func update_employment(t: Town, recipes: Dictionary) -> void:
 	var labor_force: float = t.labor_force()
