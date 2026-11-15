@@ -35,9 +35,8 @@ func charge_wages(t: Town, recipes: Dictionary) -> void:
 		t.market.fund += maint
 		ind.last_wages = wages
 		ind.last_maintenance = maint
-		# Stage 4: rent (set by charge_rent, which runs just before charge_wages
-		# in the daily tick) is subtracted as a production cost alongside wages.
-		ind.last_profit = ind.last_revenue - ind.last_input_cost - wages - maint - ind.last_rent
+		# last_profit is now computed in charge_rent (which runs AFTER wages in
+		# the daily tick) so it includes the current day's rent — see charge_rent.
 
 ## Stage 4 (land rent): crop-producing plantations pay rent to the local
 ## planter Pop. Rent is a production cost (like wages/maintenance), deducted
@@ -58,16 +57,24 @@ const RENT_RATE: float = 0.06   # 6% of actual crop revenue; tuned via sim
 func charge_rent(t: Town, recipes: Dictionary) -> void:
 	for ind in t.industries:
 		var recipe: Dictionary = recipes[ind.recipe_id]
-		if not _produces_crop(recipe):
+		if _produces_crop(recipe):
+			var rent: float = ind.last_revenue * RENT_RATE
+			# Stage 4 rework: rent is the MOST JUNIOR claim — wages + maintenance
+			# were paid first (charge_wages ran just before this in the daily
+			# tick). Rent is capped at whatever cash remains, floored at zero:
+			# an industry that can't cover wages pays no rent (the landowner
+			# bears the shortfall, not the workers). Never pushes money negative.
+			rent = min(rent, max(0.0, ind.money))
+			ind.money -= rent
+			ind.last_rent = rent
+			ind.weekly_rent += rent
+			t.add_to_pop_or_fund("planter", rent)
+		else:
 			ind.last_rent = 0.0
-			continue
-		var rent: float = ind.last_revenue * RENT_RATE
-		# Rent is junior to solvency: never push the industry below zero.
-		rent = min(rent, ind.money)
-		ind.money -= rent
-		ind.last_rent = rent
-		ind.weekly_rent += rent
-		t.add_to_pop_or_fund("planter", rent)
+		# last_profit computed here (after wages in charge_wages AND rent here)
+		# so all five cost components are the current day's values. charge_wages
+		# no longer computes it (it ran before rent, so last_rent would be stale).
+		ind.last_profit = ind.last_revenue - ind.last_input_cost - ind.last_wages - ind.last_maintenance - ind.last_rent
 
 ## True if the recipe outputs a land-based agricultural crop — the same set
 ## [param ProductionSystem.CROP_GOODS] marks as drought-affected. These (and
@@ -101,7 +108,14 @@ func distribute_profits(t: Town, recipes: Dictionary) -> void:
 	for ind in t.industries:
 		var recipe: Dictionary = recipes[ind.recipe_id]
 		var cap: float = float(recipe.get("daily_capacity", 1.0))
-		var wages_daily: float = float(recipe.get("daily_wages", 0.0))
+		# Stage 4 rework: reserve must cover ALL regular daily costs — inputs,
+		# wages at the CURRENT wage_rate (not just the base recipe wage), maint,
+		# AND expected land rent (last_revenue × RENT_RATE for crop industries).
+		# Otherwise an industry could pay dividends leaving a reserve that
+		# ignores rent, then can't pay the landlord the next day.
+		var prof: String = String(recipe.get("profession_required", "laborer"))
+		var wage_rate: float = float(t.wage_rate.get(prof, 1.0))
+		var wages_daily: float = float(recipe.get("daily_wages", 0.0)) * wage_rate
 		var maint_daily: float = float(recipe.get("daily_maintenance", 0.0))
 		var input_cost_per_batch: float = 0.0
 		var inputs: Dictionary = recipe.get("inputs", {})
@@ -109,7 +123,8 @@ func distribute_profits(t: Town, recipes: Dictionary) -> void:
 			var qty: float = float(inputs[good_id])
 			if t.market.has_good(good_id):
 				input_cost_per_batch += qty * t.market.get_entry(good_id).current_price
-		var daily_full_cost: float = input_cost_per_batch * cap + wages_daily + maint_daily
+		var expected_rent: float = (ind.last_revenue * RENT_RATE) if _produces_crop(recipe) else 0.0
+		var daily_full_cost: float = input_cost_per_batch * cap + wages_daily + maint_daily + expected_rent
 		var reserve: float = max(300.0, 2.0 * daily_full_cost)
 		if ind.money > reserve:
 			var payout: float = ind.money - reserve

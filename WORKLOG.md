@@ -1766,16 +1766,20 @@ Per-profession (Δcount vs day-0, Δsavings, avg SoL):
 ### Что изменено
 
 - `FinanceSystem.charge_rent(t, recipes)` + `const RENT_RATE = 0.06` —
-  ежедневный шаг после `consume_goods`, до `charge_wages`. Для каждой
-  crop-плантации (6 `CROP_GOODS`: corn/fruits/sugar_cane/tobacco/hemp/cotton)
-  рента = `RENT_RATE × ind.last_revenue` (фактическая выручка дня, не
-  номинальная мощность — засуха/glut режут revenue → режут rent). `rent =
-  min(rent, ind.money)` — рента junior к solvency, не уводит в минус. Поток:
+  ежедневный шаг после `consume_goods` и после `charge_wages` (см. доработку
+  ниже: wages+maint имеют ПРИОРИТЕТ над рентой). Для каждой crop-плантации
+  (6 `CROP_GOODS`: corn/fruits/sugar_cane/tobacco/hemp/cotton) рента =
+  `RENT_RATE × ind.last_revenue` (фактическая выручка дня, не номинальная
+  мощность — засуха/glut режут revenue → режут rent). `rent =
+  min(rent, max(0, ind.money))` — рента самый junior claim: caps по остатку
+  после wages+maint, floored at 0 (предприятие, не покрывшее зарплаты, не
+  платит ренту; landowner несёт shortfall, не workers). Поток:
   `industry.money → planter Pop.savings`. `lumber_camp`/`mine` исключены —
   extractive, не сельхоз-земля (их surplus остаётся в дивидендах).
 - `Industry.last_rent` (daily) + `Industry.weekly_rent` (accumulator,
-  сбрасывается в `WeeklyTick.run`). `last_profit` в `charge_wages` теперь
-  `revenue − input − wages − maint − rent` (рента в формуле прибыли).
+  сбрасывается в `WeeklyTick.run`; выведен в `sim_analysis` — см. доработку).
+  `last_profit` считается в `charge_rent` (после rent), НЕ в `charge_wages`:
+  `revenue − input − wages − maint − rent` (все 5 компонент текущего дня).
 - `Town.add_to_pop_or_fund(prof, amount) -> float` — drift-safe аналог
   `add_to_pop`: кредитует planter Pop если есть, иначе → `market.fund`;
   **возвращает зачисленную сумму**. `add_to_pop` — void и молча теряет деньги
@@ -1787,7 +1791,7 @@ Per-profession (Δcount vs day-0, Δsavings, avg SoL):
 
 ### Тесты
 
-`tests/test_land_rent.gd` + `.tscn` — 7 PASS:
+`tests/test_land_rent.gd` + `.tscn` — 8 PASS:
 1. `rent_equals_rate_on_crop_industry` — rent = 6% × revenue, industry −rent,
    planter +rent, drift=0.
 2. `rent_zero_on_non_crop_industry` — lumber (wood) + bakery (bread) pay 0.
@@ -1795,12 +1799,16 @@ Per-profession (Δcount vs day-0, Δsavings, avg SoL):
 4. `rent_capped_at_money` — money < rent owed → capped, industry→0.
 5. `rent_falls_back_to_fund_when_no_planter` — нет planter Pop → rent →
    `market.fund`, drift=0.
-6. `rent_subtracted_from_profit` — `last_profit = rev − wages − maint − rent`.
-7. `drift_zero_365days_planter_income_fixed` — full-world 365d, drift=0,
+6. `rent_subtracted_from_profit` — `last_profit = rev − wages − maint − rent`
+   (wages перед rent; last_profit считается в `charge_rent`).
+7. `rent_wages_maint_shortage` — денег < wages+maint+rent: wages+maint paid
+   in full (приоритет), rent capped по остатку (floored 0), industry НЕ в
+   минус, last_profit корректен, conserved. (Доработка по ревью — gap-сценарий.)
+8. `drift_zero_365days_planter_income_fixed` — full-world 365d, drift=0,
    planter savings растут, planter SoL ≥ rich-ceiling ≥ financier, poor не
    провалился.
 
-Все 16 существующих suites остаются PASS (test_market, test_trade, test_labour,
+Все 17 suites остаются PASS (test_market, test_trade, test_labour,
 test_mobility, test_profession_income, test_ownership, …). Регрессий нет.
 
 ### Результаты (365-day sim, seed 1337)
@@ -1811,9 +1819,9 @@ drift = -0.0000 (total_money 438700 константен).
 |---|---|---|---|
 | poor | laborer/sailor/servant | +400k each | 0.86 |
 | middle | artisan/smith/merchant/small_planter | +35-130k | 0.62 |
-| rich | planter | **+117945** | 0.503 |
-| rich | official | +38024 | 0.499 |
-| rich | financier | −3225 | 0.496 |
+| rich | planter | **+118152** | 0.517 |
+| rich | official | +38124 | 0.518 |
+| rich | financier | −3122 | 0.517 |
 
 **Planter income fixed:** savings растут (+117945) вместо истощения (было
 −5702 в Stage 1). Rent даёт плантерам ~36/чел/нед при потреблении 22/чел/нед —
@@ -1852,6 +1860,39 @@ Financier (−3225, всё ещё depleting) — следующий на оче�
 Поток ренты: `industry.money → planter Pop.savings` (или `market.fund`).
 Оба счёта в `WorldState.total_money` → drift=0 структурно. Юнит-тесты
 проверяют each-step conservation; full-world 365d — drift=-0.0000.
+
+### Доработка по ревью (post-review)
+
+Ревью Stage 4 отметило 3 пункта в финансовой логике — исправлены:
+
+1. **Приоритет расходов (rent vs wages+maint).** Было: `charge_rent` бежал
+   ДО `charge_wages`, caps `min(rent, ind.money)` — не резервировал деньги под
+   зарплаты → wages потом уводили в минус сверх ренты. Стало: `charge_wages`
+   ПЕРЕД `charge_rent` (workers + production upkeep приоритет над landowner);
+   rent caps `min(rent, max(0, ind.money))` по остатку после wages+maint,
+   floored at 0 — предприятие, не покрывшее зарплаты, ренту не платит
+   (shortfall несёт landowner, не workers). Rent никогда не уводит money в
+   минус сверх уже списанных wages. `last_profit` перенесён из `charge_wages`
+   в `charge_rent` (считается после rent, все 5 компонент текущего дня — иначе
+   при wages-first last_rent был бы stale).
+2. **Reserve учитывает ренту + wage_rate.** `distribute_profits` reserve был
+   `max(300, 2×(input×cap + wages + maint))` — без ренты и без wage_rate.
+   Стало: `+ expected_rent` (`last_revenue×RENT_RATE`, crop-only) и wages по
+   текущему `wage_rate` (не base recipe wage). Резерв теперь покрывает ВСЕ
+   регулярные дневные затраты — иначе предприятие могло выплатить дивиденды,
+   оставив резерв без ренты, и на следующий день не заплатить landowner.
+3. **`weekly_rent` в диагностике.** Поле накапливалось и сбрасывалось, но
+   нигде не читалось. Добавлено в `sim_analysis`: «Land rent collected (final
+   week)» — доказывает активность rent-канала и его недельный масштаб. Поле
+   оставлено (пригодится для per-town/per-industry анализа доходов).
+
+Новый тест `rent_wages_maint_shortage` (test 7) — gap-сценарий из ревью:
+money 30, wages 20 + maint 4 = 24 paid full → money 6; rent owed 12 capped
+at 6 → money 0 (НЕ −6); planter +6; last_profit 170; conserved.
+
+Результаты (365d, seed 1337): drift=-0.0000; planter savings +118152 (было
++117945 — доход сохранён, слегка вырос от более крупного резерва); planter
+SoL 0.517; rent collected final week 264 → planter Pops. Все 17 suites PASS.
 
 ---
 

@@ -16,10 +16,14 @@ extends Node
 ##     industry.money → 0 (never negative); planter gets the capped amount.
 ##  5. rent_falls_back_to_fund_when_no_planter — a town with no planter Pop
 ##     routes rent to market.fund; credited == charged; conserved (drift-safe).
-##  6. rent_subtracted_from_profit — after charge_rent + charge_wages,
+##  6. rent_subtracted_from_profit — after charge_wages + charge_rent,
 ##     last_profit = revenue - input - wages - maint - rent (rent is in the
 ##     profit formula as a production cost).
-##  7. drift_zero_365days_planter_income_fixed — full-world sim with rent
+##  7. rent_wages_maint_shortage — money short of wages+maint+rent: wages+maint
+##     paid in full (priority over rent), rent capped at the remaining cash
+##     (floored at 0), industry NOT pushed negative, last_profit correct,
+##     conserved. (Stage 4 rework — the gap scenario the review flagged.)
+##  8. drift_zero_365days_planter_income_fixed — full-world sim with rent
 ##     wired into the daily tick; total_money conserved (|drift|<1.0); planter
 ##     savings GROW over the year (rent yields income — fixes the Stage-1
 ##     depletion); planter SoL holds at the rich-stratum ceiling and is not
@@ -38,6 +42,7 @@ func _ready() -> void:
 	ok = ok and test_rent_capped_at_money()
 	ok = ok and test_rent_falls_back_to_fund_when_no_planter()
 	ok = ok and test_rent_subtracted_from_profit()
+	ok = ok and test_rent_wages_maint_shortage()
 	ok = ok and test_drift_zero_365days_planter_income_fixed()
 	print("\n=== %s ===" % ("ALL LAND-RENT TESTS PASSED" if ok else "SOME TESTS FAILED"))
 	get_tree().quit(0 if ok else 1)
@@ -215,8 +220,10 @@ func test_rent_falls_back_to_fund_when_no_planter() -> bool:
 	_report("rent_falls_back_to_fund_when_no_planter", passed, detail)
 	return passed
 
-## charge_rent (rent 7.56) then charge_wages (wages 20, maint 4) →
+## charge_wages (wages 20, maint 4) then charge_rent (rent 7.56) →
 ## last_profit = 126 - 0 - 20 - 4 - 7.56 = 94.44. Proves rent is in the formula.
+## (Stage 4 rework: wages run BEFORE rent; last_profit is computed in charge_rent
+## so all five cost components are the current day's values.)
 func test_rent_subtracted_from_profit() -> bool:
 	WorldState.reset()
 	var t := _town_with_planter(0.0)
@@ -231,8 +238,8 @@ func test_rent_subtracted_from_profit() -> bool:
 	ind.last_input_cost = 0.0    # raw crop, no inputs
 	t.industries.append(ind)
 	var fin := FinanceSystem.new()
-	fin.charge_rent(t, _recipes_sugar())     # rent 7.56, last_rent set
-	fin.charge_wages(t, _recipes_sugar())    # wages 20, maint 4, last_profit computed
+	fin.charge_wages(t, _recipes_sugar())    # wages 20, maint 4 (runs first now)
+	fin.charge_rent(t, _recipes_sugar())     # rent 7.56, last_rent set, last_profit computed
 	var expected_profit: float = 126.0 - 0.0 - 20.0 - 4.0 - 126.0 * FinanceSystem.RENT_RATE
 	var passed: bool = true
 	var detail: String = ""
@@ -245,6 +252,60 @@ func test_rent_subtracted_from_profit() -> bool:
 	else:
 		detail = "last_profit %.2f = 126 - 20 - 4 - rent 7.56 (rent subtracted)" % expected_profit
 	_report("rent_subtracted_from_profit", passed, detail)
+	return passed
+
+## Stage 4 rework: wages + maintenance have PRIORITY over land rent. Industry
+## money 30, full-util day: wages 20 + maint 4 = 24 paid FIRST (money 30→6),
+## then rent owed 12 (revenue 200 × 6%) capped at remaining 6 (money 6→0).
+## Workers paid in full; rent reduced (not the full 12); industry ends at 0,
+## NOT negative; planter gets the capped 6; last_profit = 200-0-20-4-6 = 170.
+## This is the gap scenario the review flagged: rent must not eat the cash
+## wages+maintenance need, and must not push money negative on top of them.
+func test_rent_wages_maint_shortage() -> bool:
+	WorldState.reset()
+	var t := _town_with_planter(0.0)
+	var laborer := Pop.new("p_lab", "t1", "poor", "laborer", 100.0)
+	laborer.savings = 0.0
+	t.pops.append(laborer)
+	t.market.fund = 0.0
+	var ind := Industry.new("ind1", "sugar_plantation", "t1", 7.0, 30.0)
+	ind.last_revenue = 200.0      # rent owed = 200 × 0.06 = 12
+	ind.produced_batches = 7.0    # full util → wages 20, maint 4 (full daily rate)
+	ind.last_input_cost = 0.0     # raw crop, no inputs
+	t.industries.append(ind)
+	var fin := FinanceSystem.new()
+	var before: float = ind.money + _planter_savings(t) + laborer.savings + t.market.fund
+	fin.charge_wages(t, _recipes_sugar())   # wages 20 → laborer, maint 4 → fund; money 30→6
+	fin.charge_rent(t, _recipes_sugar())    # rent owed 12 capped at 6; money 6→0; planter +6
+	var after: float = ind.money + _planter_savings(t) + laborer.savings + t.market.fund
+	var expected_rent: float = 6.0    # 12 owed, capped at remaining 6
+	var expected_profit: float = 200.0 - 0.0 - 20.0 - 4.0 - 6.0
+	var passed: bool = true
+	var detail: String = ""
+	if abs(ind.last_wages - 20.0) > 0.001 or abs(ind.last_maintenance - 4.0) > 0.001:
+		passed = false
+		detail = "wages/maint not paid in full: wages=%.4f maint=%.4f (expect 20/4)" % [ind.last_wages, ind.last_maintenance]
+	elif abs(ind.last_rent - expected_rent) > 0.001:
+		passed = false
+		detail = "rent not capped at remaining 6: %.4f (owe 12, money-after-wages was 6)" % ind.last_rent
+	elif ind.money < -0.001:
+		passed = false
+		detail = "industry pushed negative by rent: %.4f (should be 0)" % ind.money
+	elif abs(ind.money) > 0.001:
+		passed = false
+		detail = "industry money wrong: %.4f (expect 0)" % ind.money
+	elif abs(_planter_savings(t) - expected_rent) > 0.001:
+		passed = false
+		detail = "planter should get capped 6: %.4f" % _planter_savings(t)
+	elif abs(ind.last_profit - expected_profit) > 0.001:
+		passed = false
+		detail = "last_profit wrong: %.4f (expect %.0f = 200-20-4-6)" % [ind.last_profit, expected_profit]
+	elif abs(after - before) > 0.001:
+		passed = false
+		detail = "not conserved: before=%.4f after=%.4f" % [before, after]
+	else:
+		detail = "wages 20+maint 4 paid full, rent 12→6 capped, money 30→0 (not neg), planter +6, profit 170, drift=0"
+	_report("rent_wages_maint_shortage", passed, detail)
 	return passed
 
 ## Full-world 365-day sim with rent wired into the daily tick.

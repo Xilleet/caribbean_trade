@@ -46,6 +46,15 @@ func _ready() -> void:
 			if p.mobility_cooldown > 0:
 				on_cooldown += 1
 	print("Pops on mobility cooldown (a transition fired recently): %d" % on_cooldown)
+	# Stage 4: total land rent collected in the FINAL week (weekly_rent is reset
+	# each week in WeeklyTick, so this is the last week's rent flow — proves the
+	# rent channel is active and shows its weekly magnitude; flows to planter
+	# Pops). Puts the otherwise-unused weekly_rent field into diagnostics.
+	var weekly_rent_total: float = 0.0
+	for t in WorldState.towns:
+		for ind in t.industries:
+			weekly_rent_total += ind.weekly_rent
+	print("Land rent collected (final week): %.0f → planter Pops (Stage 4)" % weekly_rent_total)
 	print("=== end ===")
 	get_tree().quit(0)
 
