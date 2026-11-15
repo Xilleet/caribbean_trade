@@ -1,9 +1,7 @@
 extends Node
 
-## Minimal market tests. Run with GUT (https://github.com/bitwes/Gut) by placing
-## this file in a test/ dir and pointing GUT at it, OR just run the scene
-## directly (it prints PASS/FAIL and quits) to sanity-check the price model and
-## transaction limits without GUT installed:
+## Minimal market tests. Run the scene directly (it prints PASS/FAIL and
+## quits) to sanity-check the price model and transaction limits:
 ##   godot --headless --path <project> tests/test_market.tscn
 ##
 ## These tests cover the Stage-1 quality criteria from the v0.1 plan:

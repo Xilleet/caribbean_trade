@@ -4,9 +4,10 @@ extends RefCounted
 ## Stage A3 — wars and diplomacy. Tracks bilateral relations between states
 ## (stored on [member WorldState.state_relations]) and the player's reputation
 ## with each state + pirates ([member WorldState.player_rep]). Each week rolls
-## for: relation/rep decay toward 0 (1 pt/week); diplomatic incidents (±10 to
-## a random state pair); war declarations (when relation < -80, prob 0.3/week);
-## peace treaties on existing wars (prob 0.2/week). Wars block port access for
+## for: relation/rep decay toward 0 (0.3 pt/week); diplomatic incidents (±20 to
+## a random state pair, prob 0.15/week, 70% hostile); war declarations (when
+## relation < -60, prob 0.4/week); peace treaties (prob 0.2/week). Wars block
+## port access for
 ## ships flying the enemy flag (see ShipsTick._can_dock); peace resets
 ## relations to -20.
 ##

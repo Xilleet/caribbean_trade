@@ -1,7 +1,7 @@
 extends Node
 
-## Stage-2 tests. Run directly (prints PASS/FAIL and quits with exit code) OR via
-## GUT:   godot --headless --path <project> tests/test_trade.tscn
+## Stage-2 tests. Run directly (prints PASS/FAIL and quits with exit code):
+##   godot --headless --path <project> tests/test_trade.tscn
 ##
 ## Covers the Stage-2 quality criteria from the v0.1 plan:
 ##  - a ship cannot sell a good it does not carry;

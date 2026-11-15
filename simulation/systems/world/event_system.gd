@@ -14,7 +14,7 @@ extends RefCounted
 ##               local town: company.money -> town.population_money.
 ##   famine   -> raises population demand for a staple (panic): more
 ##               population_money -> market.fund via the buy. Fires only when a
-##               food good's stock is already below 0.5 * target — i.e. it is a
+##               food good's stock is already below 0.2 * target — i.e. it is a
 ##               CONSEQUENCE of the simulation, not pure RNG (concept §3.4:
 ##               "значительная часть событий — следствие самой симуляции").
 ##

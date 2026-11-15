@@ -1,7 +1,7 @@
 extends Node
 
 ## Stage A3 tests for relations, reputation, wars, port access, tax scaling.
-## Run directly (prints PASS/FAIL and quits with an exit code) OR via GUT:
+## Run directly (prints PASS/FAIL and quits with an exit code):
 ##   godot --headless --path <project> tests/test_wars.tscn
 ##
 ## Covers:

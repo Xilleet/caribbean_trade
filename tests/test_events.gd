@@ -1,7 +1,7 @@
 extends Node
 
 ## Stage-6 tests for world events. Run directly (prints PASS/FAIL and quits with
-## an exit code) OR via GUT:
+## an exit code):
 ##   godot --headless --path <project> tests/test_events.tscn
 ##
 ## Covers the Stage-6 quality criteria (concept §3.4):

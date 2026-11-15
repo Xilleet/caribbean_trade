@@ -2,7 +2,7 @@ extends Node
 
 ## Stage A2 tests for colonial powers (Spain/England/France/Netherlands) and
 ## their customs tax on ship trades. Run directly (prints PASS/FAIL and quits
-## with an exit code) OR via GUT:
+## with an exit code):
 ##   godot --headless --path <project> tests/test_states.tscn
 ##
 ## Covers:

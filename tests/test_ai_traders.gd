@@ -1,7 +1,7 @@
 extends Node
 
 ## Stage-5 tests for autonomous AI trading companies. Run directly (prints
-## PASS/FAIL and quits with an exit code) OR via GUT:
+## PASS/FAIL and quits with an exit code):
 ##   godot --headless --path <project> tests/test_ai_traders.tscn
 ##
 ## Covers the Stage-5 quality criteria the concept (§3.2, §17) demands:

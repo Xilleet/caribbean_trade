@@ -1,7 +1,7 @@
 extends Node
 
 ## Stage-4 tests for player-driven (manual) trades. Run directly (prints
-## PASS/FAIL and quits with an exit code) OR via GUT:
+## PASS/FAIL and quits with an exit code):
 ##   godot --headless --path <project> tests/test_manual_trade.tscn
 ##
 ## Covers the Stage-4 quality criteria:

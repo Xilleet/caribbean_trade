@@ -1,7 +1,7 @@
 extends Node
 
 ## Stage A1 tests for pirate attacks on sailing ships. Run directly (prints
-## PASS/FAIL and quits with an exit code) OR via GUT:
+## PASS/FAIL and quits with an exit code):
 ##   godot --headless --path <project> tests/test_pirates.tscn
 ##
 ## Covers:
