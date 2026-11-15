@@ -1,109 +1,554 @@
 Caribbean Trade — 365-day simulation summary (Stage 1+2)
 Seed: 1337
-Money conservation: start=133600.00 end=133600.00 drift=-0.00 (must be ~0)
-(no external/regional trade — the player ship is the only inter-town trade)
+Money conservation: start=438700.00 end=438700.00 drift=-0.00 (must be ~0)
+(no external/regional trade — inter-town trade is the player + 8 AI companies, plus Stage 6 world events)
+Events fired: 154 (drought=85 storm=69 famine=0)
 
 === Player ===
-  money: 5000.0 -> 71952.7  profit=66952.7
-  ship ship_1     type=brigantine state=sailing  at=Cayman      cargo_used=32.9/140.0
-	lifetime: buys=2790.9 sells=75583.6 net_trade=72792.7
-	cargo: tobacco=32.9
+  money: 5000.0 -> 17306.7  profit=12306.7
+  ship ship_1     type=brigantine state=sailing  at=Port Royal  cargo_used=27.3/140.0
+    lifetime: buys=5502.2 sells=25519.8 net_trade=20017.6
+    cargo: tobacco=24.0, rum=2.4, sugar=0.8
+  ship ship_havana_sugar type=sloop     state=sailing  at=San Juan    cargo_used=0.0/60.0
+    lifetime: buys=6636.3 sells=14071.6 net_trade=7435.3
+  ship ship_santiago_metals type=sloop     state=sailing  at=Cartagena   cargo_used=5.9/60.0
+    lifetime: buys=6896.9 sells=12642.1 net_trade=5745.3
+    cargo: metal_goods=5.9
+  ship ship_carib_produce type=sloop     state=sailing  at=Cartagena   cargo_used=6.2/60.0
+    lifetime: buys=4015.7 sells=5237.1 net_trade=1221.4
+    cargo: metal_goods=6.2
+  ship ship_santo_domingo_trade type=brigantine state=sailing  at=Cap-Français cargo_used=19.0/140.0
+    lifetime: buys=7133.1 sells=11811.1 net_trade=4678.0
+    cargo: tobacco=19.0
+  ship ship_willemstad_trade type=brigantine state=idle     at=Cartagena   cargo_used=6.7/140.0
+    lifetime: buys=2982.0 sells=4723.3 net_trade=1741.3
+    cargo: metal_goods=6.7
+  ship ship_northern_packet type=packet    state=sailing  at=Tortuga     cargo_used=29.4/30.0
+    lifetime: buys=883.6 sells=1046.9 net_trade=163.2
+    cargo: hemp=8.6, metal_goods=4.1, lumber=3.4, fruits=2.6, bread=10.7
+  ship ship_southern_packet type=packet    state=sailing  at=Havana      cargo_used=30.0/30.0
+    lifetime: buys=1920.3 sells=2466.8 net_trade=546.5
+    cargo: rum=4.1, metal=5.5, metal_goods=18.4, sugar=2.0
+  ship ship_eastern_packet type=packet    state=sailing  at=Cap-Français cargo_used=30.0/30.0
+    lifetime: buys=2637.6 sells=17019.6 net_trade=14382.1
+    cargo: tobacco=30.0
+
+=== AI Companies ===
+  Havana Sugar Co.       money=3500.0->6531.9 P/L=+3031.9
+    ship ship_havana_sugar state=sailing  net_trade=7435.3 (buys=6636.3 sells=14071.6)
+  Santiago Metals        money=3500.0->5192.3 P/L=+1692.3
+    ship ship_santiago_metals state=sailing  net_trade=5745.3 (buys=6896.9 sells=12642.1)
+  Carib Produce          money=3500.0->943.2 P/L=-2556.8
+    ship ship_carib_produce state=sailing  net_trade=1221.4 (buys=4015.7 sells=5237.1)
+  Santo Domingo Trading  money=3500.0->551.0 P/L=-2949.0
+    ship ship_santo_domingo_trade state=sailing  net_trade=4678.0 (buys=7133.1 sells=11811.1)
+  Willemstad Trading     money=3500.0->0.0 P/L=-3500.0
+    ship ship_willemstad_trade state=idle     net_trade=1741.3 (buys=2982.0 sells=4723.3)
+  Northern Packet Line   money=5000.0->21.6 P/L=-4978.4
+    ship ship_northern_packet state=sailing  net_trade=163.2 (buys=883.6 sells=1046.9)
+  Southern Packet Line   money=5000.0->335.2 P/L=-4664.8
+    ship ship_southern_packet state=sailing  net_trade=546.5 (buys=1920.3 sells=2466.8)
+  Eastern Packet Line    money=5000.0->13259.5 P/L=+8259.5
+    ship ship_eastern_packet state=sailing  net_trade=14382.1 (buys=2637.6 sells=17019.6)
 
 === Cayman ===
-  population: poor=671 middle=177 rich=26 (total 874)
-  pop_money=130453.4  market_fund=-139425.3  external_balance=0.0  satisfaction=0.953
+  population: poor=316 middle=65 rich=8 (total 389)  satisfaction=0.950
+  Pops (10):
+    poor        /laborer        count=  108.2 sat=1.000 employed=  29.0 (73.2%)
+    poor        /sailor         count=   94.4 sat=1.000 employed=   0.0 (100.0%)
+    poor        /servant        count=  113.3 sat=1.000 employed=   0.0 (100.0%)
+    middle      /artisan        count=   30.3 sat=0.754 employed=  14.0 (53.8%)
+    middle      /smith          count=   10.3 sat=0.754 employed=   0.0 (100.0%)
+    middle      /merchant       count=   14.2 sat=0.754 employed=   0.0 (100.0%)
+    middle      /small_planter  count=   10.1 sat=0.754 employed=   0.0 (100.0%)
+    rich        /planter        count=    3.4 sat=0.571 employed=   0.0 (100.0%)
+    rich        /official       count=    2.5 sat=0.571 employed=   0.0 (100.0%)
+    rich        /financier      count=    1.8 sat=0.571 employed=   0.0 (100.0%)
+  pop_money=87983.7  market_fund=-84416.4  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
   industries:
-	lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
-	orchard            workers=7.0 money=316.0 weekly_profit=-16.0
-	corn_farm          workers=10.0 money=1162.1 weekly_profit=-538.2
-	bakery             workers=14.0 money=822.2 weekly_profit=-131.4
+    lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
+    orchard            workers=9.0 money=300.0 weekly_profit=0.0
+    corn_farm          workers=12.0 money=300.0 weekly_profit=1212.2
+    bakery             workers=14.0 money=321.9 weekly_profit=22.5
   goods (active):
-	wood         stock=    60.0 price=    5.00 demand=   0.00 supply=   0.00
-	metal        stock=    10.0 price=   43.64 demand=   0.00 supply=   0.00
-	sugar        stock=     0.0 price=  200.00 demand=   1.09 supply=   0.00
-	fruits       stock=    75.6 price=    4.00 demand=   4.36 supply=   8.00
-	corn         stock=   127.0 price=    3.00 demand=   7.77 supply=  22.86
-	tobacco      stock=     0.0 price=  260.00 demand=   0.16 supply=   0.00
-	rum          stock=     8.1 price=   95.31 demand=   0.13 supply=   0.00
-	textiles     stock=     0.0 price=  500.00 demand=   0.55 supply=   0.00
-	metal_goods  stock=     0.0 price=  600.00 demand=   0.08 supply=   0.00
-	bread        stock=   129.6 price=   13.18 demand=   9.80 supply=   0.00
+    wood         stock=    60.0 price=    5.00 demand=   0.00 supply=   0.00
+    metal        stock=    10.0 price=   43.64 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.39 supply=   0.00
+    fruits       stock=    35.3 price=    4.00 demand=   1.86 supply=   0.00
+    corn         stock=    52.0 price=   58.78 demand=  21.55 supply=   0.00
+    tobacco      stock=     0.0 price=  260.00 demand=   0.05 supply=   0.00
+    rum          stock=     5.3 price=  172.26 demand=   0.04 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.19 supply=   0.00
+    metal_goods  stock=     3.3 price=  360.00 demand=   0.02 supply=   0.00
+    bread        stock=    88.8 price=    5.00 demand=   4.42 supply=  18.00
+    lumber       stock=     7.0 price=   65.00 demand=   0.00 supply=   0.00
 
 === Port Royal ===
-  population: poor=1085 middle=328 rich=83 (total 1497)
-  pop_money=21781.4  market_fund=-31441.9  external_balance=0.0  satisfaction=0.724
+  population: poor=867 middle=68 rich=19 (total 954)  satisfaction=0.828
+  Pops (10):
+    poor        /laborer        count=  297.6 sat=0.846 employed=  16.0 (94.6%)
+    poor        /sailor         count=  269.6 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  299.9 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   31.6 sat=0.656 employed=  25.0 (20.8%)
+    middle      /smith          count=    9.9 sat=0.656 employed=   9.9 (0.0%)
+    middle      /merchant       count=   15.3 sat=0.656 employed=   0.0 (100.0%)
+    middle      /small_planter  count=   11.5 sat=0.656 employed=   0.0 (100.0%)
+    rich        /planter        count=    8.9 sat=0.595 employed=   0.0 (100.0%)
+    rich        /official       count=    6.1 sat=0.595 employed=   0.0 (100.0%)
+    rich        /financier      count=    4.0 sat=0.595 employed=   0.0 (100.0%)
+  pop_money=140674.0  market_fund=-133125.2  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.51
   industries:
-	smithy             workers=12.0 money=525.7 weekly_profit=0.0
-	textile_mill       workers=11.0 money=1800.0 weekly_profit=0.0
-	corn_farm          workers=14.0 money=421.8 weekly_profit=19.3
-	bakery             workers=8.0 money=557.0 weekly_profit=-402.6
+    smithy             workers=9.9 money=4358.7 weekly_profit=0.0
+    textile_mill       workers=11.0 money=1800.0 weekly_profit=0.0
+    corn_farm          workers=16.0 money=1034.9 weekly_profit=-898.4
+    bakery             workers=14.0 money=990.1 weekly_profit=441.8
   goods (active):
-	cotton       stock=     0.0 price=  180.00 demand=   9.91 supply=   0.00
-	sugar        stock=     0.0 price=  200.00 demand=   2.31 supply=   0.00
-	fruits       stock=     0.0 price=  120.00 demand=   7.80 supply=   0.00
-	corn         stock=   412.0 price=    3.85 demand=  27.22 supply=  32.00
-	tobacco      stock=     2.0 price=  204.04 demand=   0.50 supply=   0.00
-	rum          stock=     3.3 price=  262.93 demand=   0.42 supply=   0.00
-	textiles     stock=     0.0 price=  500.00 demand=   1.15 supply=   0.00
-	metal_goods  stock=     0.0 price=  600.00 demand=   0.25 supply=   0.00
-	bread        stock=   168.8 price=   24.96 demand=  16.48 supply=  14.40
+    metal        stock=     2.0 price=  242.32 demand=   0.00 supply=   0.00
+    sugar        stock=     4.6 price=   83.80 demand=   0.49 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   4.20 supply=   0.00
+    corn         stock=   187.9 price=    3.00 demand=   9.08 supply=  32.00
+    tobacco      stock=     5.7 price=   92.38 demand=   0.11 supply=   0.00
+    rum          stock=     7.2 price=  115.78 demand=   0.10 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.25 supply=   0.00
+    metal_goods  stock=     0.0 price=  360.00 demand=   0.06 supply=   0.00
+    bread        stock=    96.8 price=   34.76 demand=  11.13 supply=   0.00
 
 === Gibara ===
-  population: poor=519 middle=140 rich=27 (total 687)
-  pop_money=168463.5  market_fund=-146256.8  external_balance=0.0  satisfaction=0.788
+  population: poor=421 middle=56 rich=13 (total 489)  satisfaction=0.818
+  Pops (10):
+    poor        /laborer        count=  154.5 sat=0.846 employed=  45.0 (70.9%)
+    poor        /sailor         count=  133.6 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  132.6 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   24.3 sat=0.656 employed=  22.2 (8.4%)
+    middle      /smith          count=    7.6 sat=0.656 employed=   0.0 (100.0%)
+    middle      /merchant       count=   12.3 sat=0.656 employed=   0.0 (100.0%)
+    middle      /small_planter  count=   11.7 sat=0.656 employed=   0.0 (100.0%)
+    rich        /planter        count=    6.5 sat=0.595 employed=   0.0 (100.0%)
+    rich        /official       count=    4.1 sat=0.595 employed=   0.0 (100.0%)
+    rich        /financier      count=    2.4 sat=0.595 employed=   0.0 (100.0%)
+  pop_money=166853.1  market_fund=-137630.9  external_balance=0.0
+  wages: artisan=0.68, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
   industries:
-	sugar_plantation   workers=7.0 money=300.0 weekly_profit=-0.0
-	tobacco_plantation workers=10.0 money=300.0 weekly_profit=0.0
-	distillery         workers=7.0 money=300.0 weekly_profit=0.0
-	corn_farm          workers=18.0 money=1494.8 weekly_profit=69.3
-	bakery             workers=15.0 money=753.6 weekly_profit=84.1
+    sugar_plantation   workers=14.0 money=485.6 weekly_profit=146.0
+    sugar_mill         workers=5.8 money=752.0 weekly_profit=1532.3
+    tobacco_plantation workers=10.0 money=300.0 weekly_profit=-50.7
+    distillery         workers=2.4 money=158.9 weekly_profit=-9.3
+    corn_farm          workers=21.0 money=300.0 weekly_profit=1353.8
+    bakery             workers=14.0 money=300.0 weekly_profit=37.6
   goods (active):
-	sugar        stock=    16.9 price=    5.99 demand=   0.92 supply=   0.00
-	fruits       stock=     0.0 price=  120.00 demand=   3.47 supply=   0.00
-	corn         stock=   131.7 price=    3.00 demand=   6.04 supply=  32.00
-	tobacco      stock=    18.3 price=    8.00 demand=   0.16 supply=   0.00
-	rum          stock=    19.9 price=   15.00 demand=   0.13 supply=   0.00
-	textiles     stock=     0.0 price=  500.00 demand=   0.46 supply=   0.00
-	metal_goods  stock=     0.0 price=  600.00 demand=   0.08 supply=   0.00
-	bread        stock=   131.6 price=    5.63 demand=   7.66 supply=   0.00
+    sugar        stock=    16.4 price=    6.63 demand=   0.38 supply=   5.83
+    fruits       stock=     0.0 price=  120.00 demand=   2.26 supply=   0.00
+    corn         stock=    93.6 price=    3.00 demand=   4.54 supply=   0.00
+    tobacco      stock=    18.4 price=    8.00 demand=   0.08 supply=   0.00
+    rum          stock=    19.2 price=   30.00 demand=   0.06 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.19 supply=   0.00
+    metal_goods  stock=     0.0 price=  360.00 demand=   0.04 supply=   0.00
+    bread        stock=    97.3 price=    5.51 demand=   5.63 supply=   0.00
+    sugar_cane   stock=     9.0 price=   68.40 demand=  11.66 supply=   7.00
 
 === Santiago ===
-  population: poor=755 middle=217 rich=42 (total 1014)
-  pop_money=105267.7  market_fund=-76990.7  external_balance=0.0  satisfaction=0.723
+  population: poor=666 middle=33 rich=8 (total 707)  satisfaction=0.823
+  Pops (10):
+    poor        /laborer        count=  268.5 sat=0.846 employed=  26.0 (90.3%)
+    poor        /sailor         count=  210.2 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  186.9 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   13.2 sat=0.492 employed=  13.2 (0.0%)
+    middle      /smith          count=    4.2 sat=0.492 employed=   4.2 (0.0%)
+    middle      /merchant       count=    8.0 sat=0.492 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    7.7 sat=0.492 employed=   0.0 (100.0%)
+    rich        /planter        count=    4.2 sat=0.214 employed=   0.0 (100.0%)
+    rich        /official       count=    2.3 sat=0.214 employed=   0.0 (100.0%)
+    rich        /financier      count=    1.3 sat=0.214 employed=   0.0 (100.0%)
+  pop_money=146809.7  market_fund=-124755.0  external_balance=0.0
+  wages: artisan=0.78, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.96
   industries:
-	mine               workers=11.0 money=300.0 weekly_profit=-138.6
-	corn_farm          workers=10.0 money=505.0 weekly_profit=1472.8
-	smithy             workers=10.0 money=300.0 weekly_profit=0.0
-	bakery             workers=12.0 money=1318.0 weekly_profit=-591.5
+    mine               workers=12.0 money=300.0 weekly_profit=0.0
+    smelter            workers=2.9 money=300.0 weekly_profit=0.0
+    corn_farm          workers=14.0 money=300.0 weekly_profit=768.1
+    smithy             workers=4.2 money=300.0 weekly_profit=0.0
+    bakery             workers=10.3 money=316.9 weekly_profit=61.6
   goods (active):
-	wood         stock=    15.0 price=    5.94 demand=   0.00 supply=   0.00
-	metal        stock=    18.0 price=   10.00 demand=   0.00 supply=   0.00
-	sugar        stock=     0.0 price=  200.00 demand=   1.42 supply=   0.00
-	fruits       stock=     0.0 price=  120.00 demand=   5.17 supply=   0.00
-	corn         stock=    90.3 price=   47.98 demand=  26.85 supply=  22.86
-	tobacco      stock=     0.0 price=  260.00 demand=   0.25 supply=   0.00
-	rum          stock=     0.0 price=  450.00 demand=   0.21 supply=   0.00
-	textiles     stock=     0.0 price=  500.00 demand=   0.71 supply=   0.00
-	metal_goods  stock=    21.4 price=   25.00 demand=   0.12 supply=   0.00
-	bread        stock=    74.4 price=   54.37 demand=  11.26 supply=  18.00
+    wood         stock=    15.0 price=    5.94 demand=   0.00 supply=   0.00
+    metal        stock=    27.4 price=   10.00 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.23 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   3.01 supply=   0.00
+    corn         stock=   123.5 price=   34.01 demand=  24.85 supply=   0.00
+    tobacco      stock=     0.0 price=  260.00 demand=   0.05 supply=   0.00
+    rum          stock=     0.0 price=  240.00 demand=   0.04 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.11 supply=   0.00
+    metal_goods  stock=    17.6 price=   50.00 demand=   0.02 supply=   0.00
+    bread        stock=   152.3 price=    5.00 demand=   8.33 supply=  18.00
+    iron_ore     stock=    16.2 price=    5.00 demand=   0.00 supply=   0.00
 
 === Tortuga ===
-  population: poor=382 middle=99 rich=16 (total 497)
-  pop_money=102253.0  market_fund=-86877.9  external_balance=0.0  satisfaction=0.733
+  population: poor=320 middle=15 rich=3 (total 338)  satisfaction=0.825
+  Pops (10):
+    poor        /laborer        count=  140.9 sat=0.846 employed=  25.0 (82.3%)
+    poor        /sailor         count=   97.9 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=   81.1 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=    5.2 sat=0.492 employed=   4.6 (10.3%)
+    middle      /smith          count=    2.1 sat=0.492 employed=   0.0 (100.0%)
+    middle      /merchant       count=    4.2 sat=0.492 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    3.8 sat=0.492 employed=   0.0 (100.0%)
+    rich        /planter        count=    1.4 sat=0.143 employed=   0.0 (100.0%)
+    rich        /official       count=    0.7 sat=0.143 employed=   0.0 (100.0%)
+    rich        /financier      count=    0.4 sat=0.143 employed=   0.0 (100.0%)
+  pop_money=27388.6  market_fund=-10264.1  external_balance=0.0
+  wages: artisan=0.94, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
   industries:
-	hemp_farm          workers=8.0 money=300.0 weekly_profit=0.0
-	distillery         workers=9.0 money=1694.0 weekly_profit=0.0
-	lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
-	corn_farm          workers=5.2 money=323.0 weekly_profit=-225.5
-	bakery             workers=15.0 money=327.7 weekly_profit=2.1
+    hemp_farm          workers=8.0 money=300.0 weekly_profit=0.0
+    distillery         workers=1.6 money=1024.3 weekly_profit=0.0
+    lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
+    corn_farm          workers=9.0 money=345.2 weekly_profit=-159.7
+    bakery             workers=3.0 money=305.5 weekly_profit=-0.5
   goods (active):
-	wood         stock=    35.0 price=    5.00 demand=   0.00 supply=   0.00
-	hemp         stock=    40.0 price=    5.00 demand=   0.00 supply=   0.00
-	sugar        stock=     0.0 price=  200.00 demand=   9.00 supply=   0.00
-	fruits       stock=     0.0 price=  120.00 demand=   2.48 supply=   0.00
-	corn         stock=    64.1 price=   53.44 demand=  22.41 supply=  11.89
-	tobacco      stock=     0.0 price=  260.00 demand=   0.09 supply=   0.00
-	rum          stock=     0.0 price=  450.00 demand=   0.08 supply=   0.00
-	textiles     stock=     0.0 price=  500.00 demand=   0.31 supply=   0.00
-	metal_goods  stock=     0.0 price=  600.00 demand=   0.05 supply=   0.00
-	bread        stock=   106.2 price=    5.00 demand=   5.57 supply=  18.00
+    wood         stock=    35.0 price=    5.00 demand=   0.00 supply=   0.00
+    hemp         stock=    24.5 price=    5.00 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.10 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   1.43 supply=   0.00
+    corn         stock=   162.6 price=    3.00 demand=   8.69 supply=  20.57
+    tobacco      stock=     0.0 price=  260.00 demand=   0.02 supply=   0.00
+    rum          stock=     0.0 price=  240.00 demand=   0.01 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.05 supply=   0.00
+    bread        stock=    68.7 price=    5.60 demand=   3.99 supply=   5.40
+
+=== Havana ===
+  population: poor=1214 middle=208 rich=44 (total 1467)  satisfaction=0.812
+  Pops (10):
+    poor        /laborer        count=  563.4 sat=0.846 employed=  32.0 (94.3%)
+    poor        /sailor         count=  350.8 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  300.2 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   66.8 sat=0.656 employed=  17.8 (73.3%)
+    middle      /smith          count=   30.1 sat=0.656 employed=   0.0 (100.0%)
+    middle      /merchant       count=   64.0 sat=0.656 employed=   0.0 (100.0%)
+    middle      /small_planter  count=   47.6 sat=0.656 employed=   0.0 (100.0%)
+    rich        /planter        count=   24.4 sat=0.595 employed=   0.0 (100.0%)
+    rich        /official       count=   12.1 sat=0.595 employed=   0.0 (100.0%)
+    rich        /financier      count=    7.6 sat=0.595 employed=   0.0 (100.0%)
+  pop_money=135818.1  market_fund=-103467.0  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    sugar_plantation   workers=10.0 money=300.0 weekly_profit=59.6
+    sugar_mill         workers=3.4 money=351.7 weekly_profit=87.5
+    tobacco_plantation workers=10.0 money=300.0 weekly_profit=-33.1
+    distillery         workers=4.4 money=77.3 weekly_profit=0.0
+    corn_farm          workers=12.0 money=587.7 weekly_profit=-194.7
+    bakery             workers=10.0 money=783.1 weekly_profit=510.9
+  goods (active):
+    sugar        stock=    15.7 price=   20.13 demand=   1.39 supply=   3.40
+    fruits       stock=     0.0 price=  120.00 demand=   6.97 supply=   0.00
+    corn         stock=   300.9 price=   12.64 demand=  31.39 supply=  27.43
+    tobacco      stock=    20.7 price=    8.00 demand=   0.26 supply=   0.00
+    rum          stock=    12.6 price=   35.93 demand=   0.22 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.70 supply=   0.00
+    metal_goods  stock=     0.0 price=  360.00 demand=   0.13 supply=   0.00
+    bread        stock=   148.2 price=   33.53 demand=  16.71 supply=  18.00
+    sugar_cane   stock=    14.0 price=   51.90 demand=   6.80 supply=   0.00
+
+=== San Juan ===
+  population: poor=609 middle=107 rich=15 (total 730)  satisfaction=0.811
+  Pops (10):
+    poor        /laborer        count=  274.8 sat=0.846 employed=  34.6 (87.4%)
+    poor        /sailor         count=  171.3 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  162.5 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   37.9 sat=0.656 employed=  17.4 (54.0%)
+    middle      /smith          count=   17.0 sat=0.656 employed=  11.0 (35.4%)
+    middle      /merchant       count=   30.1 sat=0.656 employed=   0.0 (100.0%)
+    middle      /small_planter  count=   21.8 sat=0.656 employed=   0.0 (100.0%)
+    rich        /planter        count=    7.7 sat=0.476 employed=   0.0 (100.0%)
+    rich        /official       count=    4.1 sat=0.476 employed=   0.0 (100.0%)
+    rich        /financier      count=    2.6 sat=0.476 employed=   0.0 (100.0%)
+  pop_money=167286.3  market_fund=-153212.7  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    sugar_plantation   workers=4.6 money=423.5 weekly_profit=71.7
+    sugar_mill         workers=3.4 money=337.2 weekly_profit=82.2
+    cotton_plantation  workers=10.0 money=300.0 weekly_profit=0.0
+    smithy             workers=11.0 money=2000.0 weekly_profit=0.0
+    corn_farm          workers=20.0 money=300.0 weekly_profit=-889.3
+    bakery             workers=14.0 money=324.7 weekly_profit=-94.7
+  goods (active):
+    cotton       stock=    33.0 price=    5.00 demand=   0.00 supply=   0.00
+    sugar        stock=    11.7 price=   18.29 demand=   0.65 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   3.43 supply=   0.00
+    corn         stock=   110.7 price=   37.77 demand=  24.73 supply=   0.00
+    tobacco      stock=     6.4 price=   80.23 demand=   0.09 supply=   0.00
+    rum          stock=     0.0 price=  240.00 demand=   0.07 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.33 supply=   0.00
+    metal_goods  stock=     0.0 price=  360.00 demand=   0.04 supply=   0.00
+    bread        stock=   150.8 price=    5.00 demand=   8.35 supply=  18.00
+    sugar_cane   stock=    12.9 price=    5.06 demand=   0.00 supply=   2.68
+
+=== Santo Domingo ===
+  population: poor=844 middle=78 rich=13 (total 936)  satisfaction=0.811
+  Pops (10):
+    poor        /laborer        count=  349.3 sat=0.846 employed=  49.0 (86.0%)
+    poor        /sailor         count=  234.4 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  260.7 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   31.1 sat=0.492 employed=  15.0 (51.8%)
+    middle      /smith          count=   12.9 sat=0.492 employed=   0.0 (100.0%)
+    middle      /merchant       count=   20.4 sat=0.492 employed=   0.0 (100.0%)
+    middle      /small_planter  count=   13.6 sat=0.492 employed=   0.0 (100.0%)
+    rich        /planter        count=    6.1 sat=0.476 employed=   0.0 (100.0%)
+    rich        /official       count=    3.9 sat=0.476 employed=   0.0 (100.0%)
+    rich        /financier      count=    3.1 sat=0.476 employed=   0.0 (100.0%)
+  pop_money=157455.9  market_fund=-145706.2  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    sugar_plantation   workers=12.0 money=300.0 weekly_profit=0.0
+    tobacco_plantation workers=9.0 money=300.0 weekly_profit=0.0
+    lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
+    corn_farm          workers=20.0 money=1223.8 weekly_profit=338.0
+    bakery             workers=15.0 money=1230.4 weekly_profit=154.2
+  goods (active):
+    wood         stock=    35.0 price=    5.00 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.50 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   4.13 supply=   0.00
+    corn         stock=   159.1 price=    3.00 demand=   8.91 supply=  32.00
+    tobacco      stock=    19.6 price=    8.00 demand=   0.08 supply=   0.00
+    rum          stock=     1.2 price=  240.00 demand=   0.07 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.25 supply=   0.00
+    metal_goods  stock=     5.0 price=  303.79 demand=   0.04 supply=   0.00
+    bread        stock=    86.3 price=   41.13 demand=  10.91 supply=   0.00
+    sugar_cane   stock=    21.0 price=    3.00 demand=   0.00 supply=   0.00
+
+=== Cartagena ===
+  population: poor=667 middle=47 rich=8 (total 722)  satisfaction=0.818
+  Pops (10):
+    poor        /laborer        count=  244.2 sat=0.846 employed=  31.0 (87.3%)
+    poor        /sailor         count=  191.9 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  230.6 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   20.7 sat=0.492 employed=  19.5 (5.6%)
+    middle      /smith          count=    7.7 sat=0.492 employed=   4.0 (47.8%)
+    middle      /merchant       count=   10.9 sat=0.492 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    7.3 sat=0.492 employed=   0.0 (100.0%)
+    rich        /planter        count=    3.6 sat=0.357 employed=   0.0 (100.0%)
+    rich        /official       count=    2.5 sat=0.357 employed=   0.0 (100.0%)
+    rich        /financier      count=    2.0 sat=0.357 employed=   0.0 (100.0%)
+  pop_money=257348.2  market_fund=-221019.3  external_balance=0.0
+  wages: artisan=0.51, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    mine               workers=4.0 money=300.0 weekly_profit=-1583.5
+    smelter            workers=7.2 money=300.0 weekly_profit=-573.5
+    smithy             workers=4.0 money=367.1 weekly_profit=-500.7
+    lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
+    corn_farm          workers=19.0 money=1405.9 weekly_profit=177.9
+    bakery             workers=12.3 money=420.7 weekly_profit=52.1
+  goods (active):
+    wood         stock=    35.0 price=    5.00 demand=   0.00 supply=   0.00
+    metal        stock=    15.4 price=   13.80 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.30 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   3.12 supply=   0.00
+    corn         stock=   129.9 price=    3.00 demand=   6.95 supply=  32.00
+    tobacco      stock=     3.5 price=  148.59 demand=   0.05 supply=   0.00
+    rum          stock=     0.0 price=  240.00 demand=   0.04 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.15 supply=   0.00
+    metal_goods  stock=    17.9 price=   50.00 demand=   0.02 supply=   0.00
+    bread        stock=   142.5 price=    6.09 demand=   8.47 supply=   0.00
+    iron_ore     stock=    17.4 price=    5.00 demand=   0.00 supply=   0.00
+
+=== Bridgetown ===
+  population: poor=404 middle=62 rich=14 (total 480)  satisfaction=0.812
+  Pops (10):
+    poor        /laborer        count=  137.1 sat=0.846 employed=  33.0 (75.9%)
+    poor        /sailor         count=  122.1 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  144.7 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   29.4 sat=0.656 employed=  19.1 (34.8%)
+    middle      /smith          count=    9.8 sat=0.656 employed=   0.0 (100.0%)
+    middle      /merchant       count=   13.4 sat=0.656 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    9.9 sat=0.656 employed=   0.0 (100.0%)
+    rich        /planter        count=    6.2 sat=0.524 employed=   0.0 (100.0%)
+    rich        /official       count=    4.5 sat=0.524 employed=   0.0 (100.0%)
+    rich        /financier      count=    3.3 sat=0.524 employed=   0.0 (100.0%)
+  pop_money=135475.0  market_fund=-129616.1  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    sugar_plantation   workers=7.0 money=300.0 weekly_profit=279.9
+    sugar_mill         workers=2.4 money=300.0 weekly_profit=-19.1
+    cotton_plantation  workers=10.0 money=300.0 weekly_profit=0.0
+    distillery         workers=2.9 money=106.3 weekly_profit=0.0
+    corn_farm          workers=16.0 money=300.0 weekly_profit=1638.2
+    bakery             workers=13.9 money=300.0 weekly_profit=34.4
+  goods (active):
+    cotton       stock=    28.0 price=    5.00 demand=   0.00 supply=   0.00
+    sugar        stock=    16.4 price=    6.68 demand=   0.42 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   2.25 supply=   0.00
+    corn         stock=    80.9 price=    3.00 demand=   4.41 supply=   0.00
+    tobacco      stock=     0.0 price=  260.00 demand=   0.08 supply=   0.00
+    rum          stock=    19.6 price=   30.00 demand=   0.07 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.21 supply=   0.00
+    metal_goods  stock=     5.5 price=  274.68 demand=   0.04 supply=   0.00
+    bread        stock=    95.7 price=    5.35 demand=   5.49 supply=   0.00
+    sugar_cane   stock=    16.2 price=    3.00 demand=   0.00 supply=   0.00
+
+=== Nassau ===
+  population: poor=357 middle=53 rich=4 (total 414)  satisfaction=0.963
+  Pops (10):
+    poor        /laborer        count=  122.9 sat=1.000 employed=  39.0 (68.3%)
+    poor        /sailor         count=  111.5 sat=1.000 employed=   0.0 (100.0%)
+    poor        /servant        count=  122.1 sat=1.000 employed=   0.0 (100.0%)
+    middle      /artisan        count=   24.7 sat=0.754 employed=  19.0 (23.1%)
+    middle      /smith          count=    7.7 sat=0.754 employed=   0.0 (100.0%)
+    middle      /merchant       count=   11.2 sat=0.754 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    9.7 sat=0.754 employed=   0.0 (100.0%)
+    rich        /planter        count=    1.8 sat=0.381 employed=   0.0 (100.0%)
+    rich        /official       count=    1.3 sat=0.381 employed=   0.0 (100.0%)
+    rich        /financier      count=    0.8 sat=0.381 employed=   0.0 (100.0%)
+  pop_money=119307.3  market_fund=-106492.2  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
+    sawmill            workers=5.0 money=189.8 weekly_profit=0.0
+    orchard            workers=7.0 money=300.0 weekly_profit=-31.6
+    hemp_farm          workers=8.0 money=300.0 weekly_profit=0.0
+    corn_farm          workers=16.0 money=300.0 weekly_profit=688.7
+    bakery             workers=14.0 money=315.1 weekly_profit=16.4
+  goods (active):
+    wood         stock=    26.0 price=    5.00 demand=   0.00 supply=   0.00
+    hemp         stock=    28.0 price=    5.00 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.30 supply=   0.00
+    fruits       stock=    31.1 price=    4.00 demand=   1.89 supply=   0.00
+    corn         stock=    48.4 price=   61.39 demand=  21.88 supply=   0.00
+    tobacco      stock=     0.0 price=  260.00 demand=   0.02 supply=   0.00
+    rum          stock=     0.0 price=  240.00 demand=   0.02 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.15 supply=   0.00
+    metal_goods  stock=     0.0 price=  360.00 demand=   0.01 supply=   0.00
+    bread        stock=    93.5 price=    5.00 demand=   4.78 supply=  18.00
+    lumber       stock=    20.7 price=   10.00 demand=   0.00 supply=   0.00
+
+=== Cap-Français ===
+  population: poor=555 middle=45 rich=11 (total 611)  satisfaction=0.829
+  Pops (10):
+    poor        /laborer        count=  214.8 sat=0.846 employed=  38.0 (82.3%)
+    poor        /sailor         count=  173.0 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  167.2 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   19.1 sat=0.656 employed=  19.1 (0.0%)
+    middle      /smith          count=    5.9 sat=0.656 employed=   0.0 (100.0%)
+    middle      /merchant       count=   10.0 sat=0.656 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    9.7 sat=0.656 employed=   0.0 (100.0%)
+    rich        /planter        count=    5.6 sat=0.667 employed=   0.0 (100.0%)
+    rich        /official       count=    3.4 sat=0.667 employed=   0.0 (100.0%)
+    rich        /financier      count=    1.8 sat=0.667 employed=   0.0 (100.0%)
+  pop_money=137357.0  market_fund=-127312.5  external_balance=0.0
+  wages: artisan=0.50, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    sugar_plantation   workers=12.0 money=300.0 weekly_profit=0.0
+    tobacco_plantation workers=12.0 money=316.6 weekly_profit=1358.2
+    distillery         workers=5.7 money=194.5 weekly_profit=-1.5
+    corn_farm          workers=14.0 money=865.9 weekly_profit=935.6
+    bakery             workers=13.4 money=446.7 weekly_profit=66.4
+  goods (active):
+    sugar        stock=     3.1 price=  116.30 demand=   0.31 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   2.69 supply=   0.00
+    corn         stock=   115.1 price=    3.00 demand=   5.82 supply=  16.00
+    tobacco      stock=    20.4 price=    8.00 demand=   0.06 supply=   3.00
+    rum          stock=     7.3 price=  111.67 demand=   0.05 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.16 supply=   0.00
+    metal_goods  stock=     6.6 price=  218.72 demand=   0.03 supply=   0.00
+    bread        stock=   124.8 price=    5.26 demand=   7.13 supply=   0.00
+    sugar_cane   stock=    21.0 price=    3.00 demand=   0.00 supply=   0.00
+
+=== Fort-de-France ===
+  population: poor=335 middle=49 rich=8 (total 392)  satisfaction=0.962
+  Pops (10):
+    poor        /laborer        count=  137.2 sat=1.000 employed=  35.8 (73.9%)
+    poor        /sailor         count=  105.7 sat=1.000 employed=   0.0 (100.0%)
+    poor        /servant        count=   92.1 sat=1.000 employed=   0.0 (100.0%)
+    middle      /artisan        count=   17.8 sat=0.754 employed=  16.2 (9.5%)
+    middle      /smith          count=    6.4 sat=0.754 employed=   0.0 (100.0%)
+    middle      /merchant       count=   12.4 sat=0.754 employed=   0.0 (100.0%)
+    middle      /small_planter  count=   11.9 sat=0.754 employed=   0.0 (100.0%)
+    rich        /planter        count=    4.4 sat=0.643 employed=   0.0 (100.0%)
+    rich        /official       count=    2.4 sat=0.643 employed=   0.0 (100.0%)
+    rich        /financier      count=    1.3 sat=0.643 employed=   0.0 (100.0%)
+  pop_money=55505.3  market_fund=-47080.0  external_balance=0.0
+  wages: artisan=0.73, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    sugar_plantation   workers=12.0 money=300.0 weekly_profit=0.0
+    orchard            workers=2.8 money=309.8 weekly_profit=-7.0
+    distillery         workers=5.5 money=548.9 weekly_profit=0.0
+    corn_farm          workers=21.0 money=300.0 weekly_profit=39.7
+    bakery             workers=10.6 money=300.0 weekly_profit=-49.8
+  goods (active):
+    sugar        stock=     0.0 price=  200.00 demand=   0.31 supply=   0.00
+    fruits       stock=    33.2 price=    4.00 demand=   1.81 supply=   3.73
+    corn         stock=   193.8 price=    3.00 demand=   3.64 supply=   0.00
+    tobacco      stock=     6.0 price=   87.64 demand=   0.05 supply=   0.00
+    rum          stock=     3.3 price=  240.00 demand=   0.04 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.15 supply=   0.00
+    metal_goods  stock=     0.0 price=  360.00 demand=   0.02 supply=   0.00
+    bread        stock=    74.2 price=    6.57 demand=   4.50 supply=   0.00
+    sugar_cane   stock=    21.0 price=    3.00 demand=   0.00 supply=   0.00
+
+=== Willemstad ===
+  population: poor=621 middle=38 rich=7 (total 666)  satisfaction=0.819
+  Pops (10):
+    poor        /laborer        count=  279.7 sat=0.846 employed=  20.0 (92.8%)
+    poor        /sailor         count=  188.5 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=  152.3 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=   13.8 sat=0.492 employed=  13.1 (5.2%)
+    middle      /smith          count=    5.1 sat=0.492 employed=   5.1 (0.0%)
+    middle      /merchant       count=   10.3 sat=0.492 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    9.1 sat=0.492 employed=   0.0 (100.0%)
+    rich        /planter        count=    4.0 sat=0.214 employed=   0.0 (100.0%)
+    rich        /official       count=    2.0 sat=0.214 employed=   0.0 (100.0%)
+    rich        /financier      count=    1.1 sat=0.214 employed=   0.0 (100.0%)
+  pop_money=134482.6  market_fund=-119677.1  external_balance=0.0
+  wages: artisan=0.86, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.99
+  industries:
+    smithy             workers=5.1 money=2000.0 weekly_profit=0.0
+    textile_mill       workers=3.8 money=1800.0 weekly_profit=0.0
+    lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
+    corn_farm          workers=12.0 money=300.0 weekly_profit=-47.7
+    bakery             workers=9.2 money=320.6 weekly_profit=-16.9
+  goods (active):
+    wood         stock=    30.0 price=    5.00 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.25 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   2.86 supply=   0.00
+    corn         stock=   122.6 price=   31.53 demand=  23.04 supply=   0.00
+    tobacco      stock=     0.0 price=  260.00 demand=   0.04 supply=   0.00
+    rum          stock=     0.0 price=  240.00 demand=   0.04 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.12 supply=   0.00
+    metal_goods  stock=     4.2 price=  360.00 demand=   0.02 supply=   0.00
+    bread        stock=   138.1 price=    5.12 demand=   7.83 supply=  16.61
+
+=== Paramaribo ===
+  population: poor=369 middle=18 rich=4 (total 391)  satisfaction=0.825
+  Pops (10):
+    poor        /laborer        count=  170.6 sat=0.846 employed=  36.0 (78.9%)
+    poor        /sailor         count=  106.7 sat=0.846 employed=   0.0 (100.0%)
+    poor        /servant        count=   91.5 sat=0.846 employed=   0.0 (100.0%)
+    middle      /artisan        count=    5.9 sat=0.492 employed=   5.9 (0.0%)
+    middle      /smith          count=    2.7 sat=0.492 employed=   0.0 (100.0%)
+    middle      /merchant       count=    5.2 sat=0.492 employed=   0.0 (100.0%)
+    middle      /small_planter  count=    4.1 sat=0.492 employed=   0.0 (100.0%)
+    rich        /planter        count=    2.1 sat=0.357 employed=   0.0 (100.0%)
+    rich        /official       count=    1.0 sat=0.357 employed=   0.0 (100.0%)
+    rich        /financier      count=    0.7 sat=0.357 employed=   0.0 (100.0%)
+  pop_money=35476.1  market_fund=-26928.0  external_balance=0.0
+  wages: artisan=0.97, financier=0.50, laborer=0.50, merchant=0.50, official=0.50, planter=0.50, sailor=0.50, servant=0.50, small_planter=0.50, smith=0.50
+  industries:
+    cotton_plantation  workers=10.0 money=300.0 weekly_profit=0.0
+    weaver             workers=1.0 money=300.0 weekly_profit=0.0
+    hemp_farm          workers=8.0 money=300.0 weekly_profit=0.0
+    lumber_camp        workers=8.0 money=300.0 weekly_profit=0.0
+    sawmill            workers=0.7 money=300.0 weekly_profit=0.0
+    corn_farm          workers=10.0 money=300.0 weekly_profit=150.7
+    bakery             workers=4.2 money=300.0 weekly_profit=1.5
+  goods (active):
+    wood         stock=    20.0 price=    5.00 demand=   0.00 supply=   0.00
+    cotton       stock=    18.0 price=    5.00 demand=   0.00 supply=   0.00
+    hemp         stock=    30.0 price=    5.00 demand=   0.00 supply=   0.00
+    sugar        stock=     0.0 price=  200.00 demand=   0.12 supply=   0.00
+    fruits       stock=     0.0 price=  120.00 demand=   1.66 supply=   0.00
+    corn         stock=   190.0 price=    3.00 demand=   3.80 supply=   0.00
+    tobacco      stock=     4.0 price=  134.13 demand=   0.02 supply=   0.00
+    rum          stock=     0.0 price=  240.00 demand=   0.02 supply=   0.00
+    textiles     stock=     0.0 price=  300.00 demand=   0.06 supply=   0.00
+    metal_goods  stock=     6.2 price=  238.78 demand=   0.01 supply=   0.00
+    bread        stock=    76.2 price=    6.50 demand=   4.61 supply=   0.00
+    cloth        stock=    21.0 price=   15.00 demand=   0.00 supply=   0.00
+    lumber       stock=    16.0 price=   10.00 demand=   0.00 supply=   0.00
+
