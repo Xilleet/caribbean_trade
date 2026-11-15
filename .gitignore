@@ -2,3 +2,4 @@
 .godot_bin/
 .vscode/settings.json
 .obsidian/
+*.uid
