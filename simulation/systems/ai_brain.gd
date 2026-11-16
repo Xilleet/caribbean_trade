@@ -50,7 +50,7 @@ func decide(ship: Ship, company: Company, town: Town, day: int) -> Dictionary:
 
 	# 2. Empty → best buy-low/sell-high leg from memory. Buy here if this is the
 	# buy port (then sail to the sell port); otherwise sail to the buy port.
-	var arb: Dictionary = _best_arbitrage(mem, day, ship.flag_state)
+	var arb: Dictionary = _best_arbitrage(mem, day, ship)
 	if not arb.is_empty() and float(arb["profit"]) > MIN_MARGIN:
 		if String(arb["buy_port"]) == town.id:
 			var est_buy: float = max(float(arb["est_buy"]), 1.0)
@@ -71,7 +71,13 @@ func decide(ship: Ship, company: Company, town: Town, day: int) -> Dictionary:
 ## Destination for an empty ship: the buy port of the best arbitrage leg, or a
 ## scout port if none. (Used after a sell to send the now-empty ship for cargo.)
 func _empty_dest(mem: PriceMemory, day: int, flag: String, from: Town) -> String:
-	var arb: Dictionary = _best_arbitrage(mem, day, flag)
+	# _empty_dest is called after a sell with no ship in hand to score legs by;
+	# it picks the buy port of the best NET-profitable leg. We don't have the
+	# ship here (signature is historical), so we estimate with a per-unit gross
+	# gate — a conservative proxy: any leg that clears gross is worth sailing
+	# to for a fresh look at real prices. The full net-profit gate (upkeep,
+	# duties) runs in _best_arbitrage once the ship is at the buy port.
+	var arb: Dictionary = _best_arbitrage_gross(mem, day, flag)
 	if not arb.is_empty() and float(arb["profit"]) > MIN_MARGIN:
 		return String(arb["buy_port"])
 	return explore_dest(mem, from, day)
@@ -114,12 +120,82 @@ func _best_sell_port(mem: PriceMemory, good_id: String, day: int, flag: String, 
 		return {}
 	return {"port": best_port, "price": best_price}
 
-## Best buy-low/sell-high leg over all port pairs + goods, from memory.
-## Returns {"buy_port","good","sell_port","est_buy","est_sell","profit"} or {}.
-func _best_arbitrage(mem: PriceMemory, day: int, flag: String) -> Dictionary:
+## Best buy-low/sell-high leg over all port pairs + goods, from memory, scored
+## by NET profit per full cargo (audit #4: the old gate scored gross price
+## difference per unit, so an AI would take a leg with +$2/unit spread that
+## cost $320 in upkeep for the crossing and $X in customs — a losing voyage).
+##
+## Net profit of a full-cargo leg:
+##   qty          = ship.cargo_capacity   (best case: full hold; AI buys as
+##                                     much as it can afford, capped at hold)
+##   gross        = (est_sell - est_buy) * qty
+##   upkeep_cost  = trip_days(buy→sell) * ship.upkeep_daily
+##   buy_duty     = est_buy * qty * tax_rate(buy_port)  * mult(buy, flag)
+##   sell_duty    = est_sell * qty * tax_rate(sell_port) * mult(sell, flag)
+##   net          = gross - upkeep_cost - buy_duty - sell_duty
+## `net` is the leg's expected profit; the caller compares it to MIN_MARGIN.
+## trip_days uses Euclidean distance / ship.speed (the same formula ShipsTick
+## uses to advance the ship). Duties use each port's State.tax_rate, doubled
+## when a foreign trader (flag != port's state) trades in a wartime port —
+## mirroring TradeSystem._collect_customs. The AI does NOT predict pirate
+## risk (a separate, probabilistic cost) — that remains a voyage hazard, not
+## a planning input, matching the original design.
+##
+## Returns {"buy_port","good","sell_port","est_buy","est_sell","profit"(=net)}.
+func _best_arbitrage(mem: PriceMemory, day: int, ship: Ship) -> Dictionary:
 	var ports: Array = mem.known_towns(day)
 	var best: Dictionary = {}
 	var best_profit: float = MIN_MARGIN   # must strictly beat MIN_MARGIN to win
+	var good_ids: Array = WorldState.goods.keys()
+	good_ids.sort()
+	var cap: float = ship.cargo_capacity
+	for b in ports:
+		var tb: Town = WorldState.get_town(String(b))
+		if not _dockable(ship.flag_state, tb):
+			continue
+		for s in ports:
+			if b == s:
+				continue
+			var ts: Town = WorldState.get_town(String(s))
+			if not _dockable(ship.flag_state, ts):
+				continue
+			# Trip cost (upkeep) is per PAIR, not per good — precompute once.
+			var trip_days: float = _est_trip_days(tb, ts, ship)
+			var upkeep_cost: float = trip_days * ship.upkeep_daily
+			var buy_tax: float = _duty_rate(tb, ship.flag_state)
+			var sell_tax: float = _duty_rate(ts, ship.flag_state)
+			for gid in good_ids:
+				var eb: Dictionary = mem.estimate(String(b), String(gid), day)
+				if eb.is_empty():
+					continue
+				var es: Dictionary = mem.estimate(String(s), String(gid), day)
+				if es.is_empty():
+					continue
+				var est_buy: float = float(eb["price"])
+				var est_sell: float = float(es["price"])
+				var gross: float = (est_sell - est_buy) * cap
+				var buy_duty: float = est_buy * cap * buy_tax
+				var sell_duty: float = est_sell * cap * sell_tax
+				var net: float = gross - upkeep_cost - buy_duty - sell_duty
+				if net > best_profit:
+					best_profit = net
+					best = {"buy_port": String(b), "good": String(gid), "sell_port": String(s),
+							"est_buy": est_buy, "est_sell": est_sell, "profit": net}
+				elif net == best_profit and not best.is_empty():
+					# deterministic tie-break: (buy_port, sell_port, good) ascending
+					if [String(b), String(s), String(gid)] < [best["buy_port"], best["sell_port"], best["good"]]:
+						best = {"buy_port": String(b), "good": String(gid), "sell_port": String(s),
+								"est_buy": est_buy, "est_sell": est_sell, "profit": net}
+	return best
+
+## Gross-price arbitrage (per-unit spread), used only by _empty_dest which has
+## no ship in hand to score a full-cargo net. A conservative proxy: any leg
+## that clears gross > MIN_MARGIN is worth sailing to for a fresh price look;
+## the net-profit gate runs in _best_arbitrage once the ship reaches the port.
+func _best_arbitrage_gross(mem: PriceMemory, day: int, flag: String) -> Dictionary:
+	var ports: Array = mem.known_towns(day)
+	var best: Dictionary = {}
+	var best_profit: float = MIN_MARGIN
 	var good_ids: Array = WorldState.goods.keys()
 	good_ids.sort()
 	for b in ports:
@@ -145,11 +221,37 @@ func _best_arbitrage(mem: PriceMemory, day: int, flag: String) -> Dictionary:
 					best = {"buy_port": String(b), "good": String(gid), "sell_port": String(s),
 							"est_buy": float(eb["price"]), "est_sell": float(es["price"]), "profit": profit}
 				elif profit == best_profit and not best.is_empty():
-					# deterministic tie-break: (buy_port, sell_port, good) ascending
 					if [String(b), String(s), String(gid)] < [best["buy_port"], best["sell_port"], best["good"]]:
 						best = {"buy_port": String(b), "good": String(gid), "sell_port": String(s),
 								"est_buy": float(eb["price"]), "est_sell": float(es["price"]), "profit": profit}
 	return best
+
+# Estimated trip days between two towns for a ship. ShipsTick advances the
+# ship by speed each day (minus a storm multiplier, which we ignore here as a
+# probabilistic hazard), so days = ceil(distance / speed). At 1+ day this is
+# the number of upkeep charges the voyage will cost.
+func _est_trip_days(from: Town, to: Town, ship: Ship) -> float:
+	var d: float = from.coords.distance_to(to.coords)
+	return ceili(d / ship.speed) if ship.speed > 0.0 else 999.0
+
+# Customs duty rate a ship flying [param flag] pays trading in [param town].
+# Equals town's state tax_rate, doubled when a foreign trader (flag != port's
+# state) trades in a wartime port — mirroring TradeSystem._collect_customs.
+# Free ports (no state) and own-state ports pay base tax_rate; enemy wartime
+# ports are unreachable (_dockable already filters them), so we never hit the
+# 2× foreign-wartime branch in practice for enemy ports, but the 2× still
+# applies for a foreign trader in a THIRD-party port at war with the flag's
+# state (rare; handled for correctness).
+func _duty_rate(town: Town, flag: String) -> float:
+	if town == null:
+		return 0.0
+	var st: State = WorldState.get_state(town.state_id)
+	if st == null:
+		return 0.0
+	var rate: float = st.tax_rate
+	if flag != "" and flag != town.state_id and WorldState.at_war(flag, town.state_id):
+		rate *= 2.0
+	return rate
 
 ## Nearest town to [param from] whose memory is stale/missing (scout target).
 ## If all ports are fresh, the nearest OTHER town (a cruise re-exposes to

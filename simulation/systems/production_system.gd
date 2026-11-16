@@ -154,9 +154,40 @@ func _cost_per_batch(ind: Industry, recipe: Dictionary, m: Market) -> float:
 		if m.has_good(good_id):
 			input_cost += qty * m.get_entry(good_id).current_price
 	var cap: float = float(recipe.get("daily_capacity", 1.0))
-	var wages_per_batch: float = float(recipe.get("daily_wages", 0.0)) / cap
+	# Break-even consistency (audit #2): the PLANNING cost must match the
+	# ACTUAL cost computed in FinanceSystem.charge_wages + charge_rent, so an
+	# industry the break-even gate admits as "profitable" does not turn a
+	# loss once wages+rent are charged. Two fixes vs the old formula:
+	#   1. wage_rate — the gate used recipe.daily_wages as-is, but charge_wages
+	#      multiplies by Town.wage_rate[profession] (B2). A labour-shortage
+	#      town (wage_rate 1.5+) would pass the gate then pay 50% more wages
+	#      than planned → systematic loss. Now the gate sees the real wage.
+	#   2. land rent — charge_rent takes 6% of revenue from crop industries
+	#      (FinanceSystem.RENT_RATE). The gate ignored it, so a plantation
+	#      whose revenue barely covered wages+maint would pass the gate then
+	#      lose the rent slice. Now the gate estimates rent as a fraction of
+	#      _revenue_per_batch (the planning-time revenue proxy), matching the
+	#      share charge_rent takes from last_revenue.
+	var prof: String = String(recipe.get("profession_required", "laborer"))
+	var wage_rate: float = float(_town_wage_rate(ind, prof))
+	var wages_per_batch: float = float(recipe.get("daily_wages", 0.0)) * wage_rate / cap
 	var maint_per_batch: float = float(recipe.get("daily_maintenance", 0.0)) / cap
-	return input_cost + wages_per_batch + maint_per_batch
+	var rent_per_batch: float = 0.0
+	if _produces_crop(recipe):
+		var rev_per_batch: float = _revenue_per_batch(ind, recipe, m)
+		rent_per_batch = rev_per_batch * FinanceSystem.RENT_RATE
+	return input_cost + wages_per_batch + maint_per_batch + rent_per_batch
+
+# Town.wage_rate lookup helper. wage_rate is set on Town (PopulationSystem
+# adjusts it weekly); accessed via the industry's town_id so the gate uses
+# the SAME rate charge_wages will use on the same day. Returns 1.0 if the
+# town or the profession entry is missing (a fresh town before B2 adjusts
+# has wage_rate == {} → default 1.0, matching charge_wages' .get(prof, 1.0)).
+func _town_wage_rate(ind: Industry, prof: String) -> float:
+	var t: Town = WorldState.get_town(ind.town_id)
+	if t == null:
+		return 1.0
+	return float(t.wage_rate.get(prof, 1.0))
 
 func _revenue_per_batch(ind: Industry, recipe: Dictionary, m: Market) -> float:
 	var outputs: Dictionary = recipe.get("outputs", {})
