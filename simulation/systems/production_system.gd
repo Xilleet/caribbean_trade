@@ -121,7 +121,11 @@ func _capacity_batches(ind: Industry, recipe: Dictionary) -> float:
 	var worker_ratio: float = clamp(ind.workers / req_workers, 0.0, 1.0)
 	# Stage 6: a drought cuts the harvest of crop-producing industries only.
 	var drought: float = WorldState.drought_multiplier(ind.town_id) if _produces_crop(recipe) else 1.0
-	return cap * worker_ratio * ind.efficiency * drought
+	# Stage C8.2: capacity_level multiplies the recipe's base capacity (a
+	# level-2 industry has 2× the line capacity). Applied AFTER efficiency/wear
+	# so a worn-but-expanded industry still produces more than base, just at
+	# reduced per-line efficiency.
+	return cap * float(ind.capacity_level) * worker_ratio * ind.efficiency * drought
 
 func _produces_crop(recipe: Dictionary) -> bool:
 	var outputs: Dictionary = recipe.get("outputs", {})

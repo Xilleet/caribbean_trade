@@ -53,6 +53,13 @@ func run(t: Town) -> void:
 		# Stage 4: reset the weekly rent accumulator for the new week.
 		ind.weekly_rent = 0.0
 	finance_system.distribute_profits(t, recipes)
+	# Stage C8.2: expansion pass — count down/build completions for industries
+	# under construction, and fund+start new expansions for eligible town/state/
+	# AI industries (shortage signal + profitable + owner can afford). Runs
+	# right after distribute_profits so the reserve raise for self-financing
+	# industries has kept their cash for the funding debit. Player-owned
+	# industries are skipped here (they expand via request_expansion()).
+	finance_system.process_expansion(t, recipes)
 	# Stage B3.2: passive investment income (rich 0.5%/wk, middle 0.1%/wk)
 	# drawn from market.fund → pop.savings. Conserved. Runs before population
 	# growth so rich Pops don't deplete savings and shrink (the B3 problem).
