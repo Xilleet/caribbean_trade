@@ -35,6 +35,16 @@ func charge_wages(t: Town, recipes: Dictionary) -> void:
 		t.market.fund += maint
 		ind.last_wages = wages
 		ind.last_maintenance = maint
+		# Stage C8.1: routine maintenance repairs wear proportionally to util
+		# (idle: no maint paid, no repair — symmetric with accrual in produce).
+		# maint_coverage = 1.0 in Stage 1 (maint always paid in full — no death
+		# spiral from underpaying maint; gating arrives in C3/C4). Forward-ready:
+		# when C3/C4 gates maint by money, maint_coverage < 1 → underfunded
+		# industries repair less → wear climbs faster. Capital modernization
+		# (C8.2 expansion) resets wear to 0; routine maint only slows the drift
+		# (net +WEAR_RATE − REPAIR_RATE = +0.001/day at full util).
+		var maint_coverage: float = 1.0
+		ind.wear = clampf(ind.wear - Industry.REPAIR_RATE * maint_coverage * util, 0.0, 1.0)
 		# last_profit is now computed in charge_rent (which runs AFTER wages in
 		# the daily tick) so it includes the current day's rent — see charge_rent.
 

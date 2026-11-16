@@ -107,6 +107,13 @@ func produce(t: Town, recipes: Dictionary) -> void:
 			ind.last_revenue += revenue
 			if t.market.has_good(good_id):
 				t.market.get_entry(good_id).daily_supply += qty
+		# Stage C8.1: wear accrues with utilisation (idle costs no wear —
+		# Stage 1 "idle is free"). Normalised by recipe capacity so all recipes
+		# share one WEAR_RATE. Net of repair (charge_wages), a full-util
+		# industry drifts +0.001/day toward wear=1.0 → efficiency → 0.3.
+		var cap: float = float(recipe.get("daily_capacity", 1.0))
+		var util: float = ind.produced_batches / cap if cap > 0.0 else 0.0
+		ind.wear = clampf(ind.wear + Industry.WEAR_RATE * util, 0.0, 1.0)
 
 func _capacity_batches(ind: Industry, recipe: Dictionary) -> float:
 	var cap: float = float(recipe.get("daily_capacity", 1.0))

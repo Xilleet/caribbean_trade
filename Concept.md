@@ -854,7 +854,8 @@ panel расширяется до нескольких строк. Не лома
 - **C6** — Склады и управление запасами.
 - **C7** — Производственные цепочки (DAG, промежуточные товары).
 - **C8** — Производственные мощности и инвестиции (мощность, износ, капитал
-  для модернизации).
+  для модернизации). **C8.1 ✅** (wear + repair + efficiency getter, drift=0).
+  **C8.2 pending** (capacity_level, expansion, owner-debit, wear reset).
 - **C9** — Побочные продукты и отходы (поле `byproducts` в рецептах).
 - **G** — Ресурсы и окружение (G1: земля/истощение; G2: сезонность).
 - **H** — Финансовая система и информационная асимметрия (H1: страхование;
@@ -946,7 +947,9 @@ headless sim: `start=528700.0 end=528700.0 drift=0.0000`, player profit
 - **Build new industries** — нет. Это C2.
 - **`book_value` field** — нет. Появится в C2 когда нужна будет цена
   покупки.
-- **`capacity_level`, `wear`, `expansion_cost`** — нет. Это C8.
+- **`capacity_level`, `expansion_cost`** — нет (C8.2 pending). `wear` ✅ добавлен
+  в C8.1 (`Industry.wear` + `efficiency` getter, accrual в `produce`, repair в
+  `charge_wages`).
 - **`entrepreneur` entity** — нет. `owner_id="entrepreneur:*"` fallback к
   population; реальный routing приедет с entrepreneur классом (позже).
 - **UI** — нет UI для ownership; в `game_ui.gd` панель industries не
