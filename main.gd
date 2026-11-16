@@ -2,9 +2,10 @@ extends Node
 
 ## Entry point.
 ##
-## Windowed: launches the Stage 3 ASCII UI (ui/game_ui.gd) and runs a continuous,
-## player-speed-controlled simulation — no hard 365-day stop. Headless: runs the
-## 365-day Stage 1+2 verification and writes the CSV/summary report to
+## Windowed: launches the Stage UI-1 scene-based UI (ui/game_ui.tscn, declared
+## as a child of Main in main.tscn) and runs a continuous, player-speed-
+## controlled simulation — no hard 365-day stop. Headless: runs the 365-day
+## Stage 1+2 verification and writes the CSV/summary report to
 ## user://sim_output/ (the same path the tests and the README point at).
 ##
 ## Speed (windowed): Pause / 1× / 2× / 3× (days per second = 0 / 4 / 16 / 60).
@@ -13,6 +14,10 @@ extends Node
 ## The UI reads state only from WorldState / SimulationClock and listens to
 ## EventBus; this controller owns the engine and the tick cadence and nothing
 ## else. Press ESC to quit.
+##
+## Stage UI-1: the world is built in _enter_tree (not _ready) so the GameUI
+## sub-scene — instantiated as a child of Main — sees a populated WorldState
+## when its own _ready fires (children's _ready runs before the parent's).
 
 const SIM_DAYS_HEADLESS: int = 365
 const CSV_SAMPLE_EVERY: int = 7
@@ -33,7 +38,7 @@ var _engine: SimulationEngine = null
 var _headless: bool = false
 var _speed: int = 1            # 0 paused, 1..3
 var _acc: float = 0.0
-var _ui: Control = null
+var _ui: Control = null    # Stage UI-1: now a child node of the main scene (was add_child'd in code)
 
 # --- headless verification state (windowed mode ignores these) ---
 var _day: int = 0
@@ -45,12 +50,24 @@ var _company_start: float = 0.0
 var _ai_starts: Dictionary = {}   # ai company id -> money at day 0 (for P/L)
 var _done: bool = false
 
+# Stage UI-1: build the world in _enter_tree (before any child's _ready runs)
+# so the GameUI sub-scene — instantiated as a child of Main in main.tscn — sees
+# a populated WorldState when its own _ready fires. _ready runs bottom-up
+# (children before parent); _enter_tree runs top-down. Putting build_world()
+# here keeps the old invariant "world built before UI subscribes" without
+# deferring UI init or splitting _ready across frames. The engine is created
+# here too so a deferred day_advanced (if any signal were ever emitted during
+# build) would find it non-null — though build_world itself emits nothing.
+func _enter_tree() -> void:
+	if Engine.is_editor_hint():
+		return
+	WorldState.build_world()
+	_engine = SimulationEngine.new()
+
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	_headless = DisplayServer.get_name() == "headless"
-	WorldState.build_world()
-	_engine = SimulationEngine.new()
 	if _headless:
 		_init_headless()
 	else:
@@ -65,8 +82,10 @@ func _ready() -> void:
 		EventBus.ship_docked.connect(_on_ship_docked)
 		_speed = 0
 		DisplayServer.window_set_title("Caribbean Trade — Stage 4 (manual trade & routes)")
-		_ui = load("res://ui/game_ui.gd").new()
-		add_child(_ui)
+		# Stage UI-1: GameUI is now a child node declared in main.tscn — no more
+		# load(...).new() + add_child. Grab the reference so the ship-dock handler
+		# can call select_town on it exactly as before.
+		_ui = $GameUI
 		EventBus.message.emit("Stage 4 — docked at Tortuga. Trade here, edit the route, then Отплыть.")
 		EventBus.message.emit("Space pause · 1/2/3 speed · click a town to inspect it.")
 	EventBus.message.emit("World built — seed %d, %d towns, %d goods." %

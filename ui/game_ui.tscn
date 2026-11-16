@@ -1,0 +1,80 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://ui/game_ui.gd" id="1_gameui"]
+[ext_resource type="PackedScene" path="res://ui/map/world_map.tscn" id="2_worldmap"]
+[ext_resource type="PackedScene" path="res://ui/hud/hud.tscn" id="3_hud"]
+[ext_resource type="PackedScene" path="res://ui/panels/town_panel.tscn" id="4_townpanel"]
+[ext_resource type="PackedScene" path="res://ui/log/event_log.tscn" id="5_eventlog"]
+
+[node name="GameUI" type="Control"]
+script = ExtResource("1_gameui")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="BG" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.07, 0.11, 1)
+
+[node name="Split" type="HSplitContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = -6.0
+offset_bottom = -6.0
+
+[node name="WorldMap" parent="Split" instance=ExtResource("2_worldmap")]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Right" type="VBoxContainer" parent="Split"]
+custom_minimum_size = Vector2(640, 0)
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="HUD" parent="Split/Right" instance=ExtResource("3_hud")]
+size_flags_horizontal = 3
+
+[node name="Sep1" type="HSeparator" parent="Split/Right"]
+theme_override_constants/separation = 2
+
+[node name="TownPanel" parent="Split/Right" instance=ExtResource("4_townpanel")]
+size_flags_horizontal = 3
+
+[node name="Sep2" type="HSeparator" parent="Split/Right"]
+theme_override_constants/separation = 2
+
+[node name="ShipHeader" type="Label" parent="Split/Right"]
+unique_name_in_owner = true
+text = "— Ship —"
+
+[node name="ShipBody" type="Label" parent="Split/Right"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+
+[node name="RouteHeader" type="Label" parent="Split/Right"]
+unique_name_in_owner = true
+text = "— Route —"
+
+[node name="RouteSlot" type="VBoxContainer" parent="Split/Right"]
+unique_name_in_owner = true
+theme_override_constants/separation = 2
+
+[node name="Sep3" type="HSeparator" parent="Split/Right"]
+theme_override_constants/separation = 2
+
+[node name="DiploHeader" type="Label" parent="Split/Right"]
+unique_name_in_owner = true
+text = "— Diplomacy —"
+
+[node name="DiploSlot" type="VBoxContainer" parent="Split/Right"]
+unique_name_in_owner = true
+theme_override_constants/separation = 2
+
+[node name="Sep4" type="HSeparator" parent="Split/Right"]
+theme_override_constants/separation = 2
+
+[node name="EventLog" parent="Split/Right" instance=ExtResource("5_eventlog")]
+size_flags_vertical = 3

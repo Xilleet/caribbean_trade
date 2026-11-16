@@ -1,76 +1,72 @@
 extends Control
 
-## Stage 4 UI. Builds its whole subtree in code — no .tscn, no assets — and
-## lays out as:
+## Stage UI-1 game_ui — the right-column controller + the still-dynamic panels.
 ##
-##   ┌──────────────── HSplitContainer ───────────────────────────────────┐
-##   │  AsciiMap (left)        │  right VBox:                              │
-##   │   ~~~~ T ·········      │   [Pause][1×][2×][3×]  Day 42 · Wk 6  $1234│
-##   │        ·  ·   b         │   ── Tortuga ──                            │
-##   │   ·   P      G          │     [read-only price table]  OR            │
-##   │        ·    ·           │     [⚓ Depart -> Port Royal]               │
-##   │     C    S              │     sugar  stk 47  $18.20  hold 0           │
-##   │  (click a town)         │        [Buy1][Buy10] [Sell1][Sell10][All]   │
-##   │                         │   ── Ship ──                               │
-##   │                         │     state / cargo / wallet                 │
-##   │                         │   ── Route ──                              │
-##   │                         │     [Up][Dn] > Tortuga [Del]               │
-##   │                         │     [+ Add Cayman]                         │
-##   │                         │   ── Log ──                                │
-##   │                         │     [d42] bought 12 sugar @ 18.2 ...        │
-##   └─────────────────────────┴───────────────────────────────────────────┘
+## This used to be a single Control that built its whole subtree in code
+## (_build_layout: HSplit -> AsciiMap + right VBox of top bar / town / ship /
+## route / diplomacy / log). Stage UI-1 moves the static parts into scenes:
 ##
-## The trade panel appears only for the town the player's ship is docked at.
-## The ship never auto-trades in windowed mode (see main.gd): docking pauses
-## the clock, the player buys/sells at fixed quantities, then clicks Depart.
-## Route stops are reordered/removed inline and appended via "+ Add <town>".
+##   ui/map/world_map.tscn      — AsciiMap (already class_name, now a scene)
+##   ui/hud/hud.tscn            — top bar (speed + day + money)
+##   ui/panels/town_panel.tscn  — "— Town —" title + price-memory body + a slot
+##   ui/log/event_log.tscn      — "— Log —" + the ring-buffer message view
+##   ui/game_ui.tscn            — the skeleton above, instantiating those
 ##
-## Reads state only from WorldState / SimulationClock and listens to EventBus;
-## every mutation is delegated to the Main controller (player_buy / depart_ship
-## / route_*). In-game labels stay English for consistency with Stage 3 and to
-## keep button text short and font-safe (the bundled DejaVu Sans Mono carries
-## Cyrillic for the log messages regardless).
-
-const FONT_PATH: String = "res://ui/fonts/DejaVuSansMono.ttf"
-const LOG_LINES: int = 14
+## What stays in this script (data-driven by nature — not worth a scene):
+##   - the dynamic per-good trade rows (built per click / dock),
+##   - the dynamic per-stop route rows,
+##   - the dynamic per-state diplomacy rows + state-pair relations matrix,
+##   - the ship readout (one multiline label, recomputed each refresh).
+## These read WorldState / SimulationClock and emit through EventBus exactly
+## as before; the controller (main.gd) still owns every mutation. No economic
+## state is held here, so determinism and money conservation are unaffected.
+##
+## The public surface main.gd / AsciiMap relied on is unchanged: select_town
+## and the _on_* signal handlers. main.gd loads this scene instead of .new().
 
 var _controller: Node = null          # the Main root node (owns the engine)
-var _font: Font
 var _selected_town: String = "tortuga"
 
-var _day_label: Label
-var _money_label: Label
-var _speed_buttons: Array[Button] = []
-var _town_title: Label
-var _town_body: Label            # read-only price table (shown when not docked here)
-var _trade_panel: VBoxContainer  # per-good buy/sell buttons (shown when docked here)
-var _ship_body: Label
-var _route_panel: VBoxContainer
-var _diplo_panel: VBoxContainer   # Stage A3.1: diplomacy (bribe + citizenship per state)
-var _log_label: Label
-var _log_lines: Array[String] = []
+# Static view nodes from the scene (sub-scene internals via their scripts).
+@onready var _hud: Control = $Split/Right/HUD
+@onready var _town_panel: Control = $Split/Right/TownPanel
+@onready var _ship_body: Label = %ShipBody
+@onready var _route_panel: VBoxContainer = %RouteSlot
+@onready var _diplo_panel: VBoxContainer = %DiploSlot
 
-func _load_font() -> Font:
-	# Prefer the bundled .ttf (consistent once the editor imports it); fall back
-	# to the OS monospace font so a direct `godot --path .` run with no prior
-	# editor import still works.
-	var f = load(FONT_PATH)
-	if f != null and f is Font:
-		return f
-	var sf := SystemFont.new()
-	sf.font_names = PackedStringArray(["DejaVu Sans Mono", "Liberation Mono", "Courier New", "monospace"])
-	return sf
+# Convenience accessors into the sub-scene's exposed nodes.
+@onready var _town_title: Label = _town_panel.title_label
+@onready var _town_body: Label = _town_panel.body_label
+@onready var _trade_panel: VBoxContainer = _town_panel.trade_slot
 
 func _ready() -> void:
 	_controller = get_parent()
-	_font = _load_font()
-	_build_layout()
+	# Theme the two static labels game_ui still owns (ShipHeader / RouteHeader /
+	# DiploHeader) and the dynamic body label, so they match the old look.
+	var f := UITheme.load_font()
+	for lname in ["ShipHeader", "RouteHeader", "DiploHeader"]:
+		var l: Label = get_node("Split/Right/" + lname)
+		l.add_theme_font_override("font", f)
+		l.add_theme_font_size_override("font_size", 15)
+		l.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+	_ship_body.add_theme_font_override("font", f)
+	_ship_body.add_theme_font_size_override("font_size", 13)
+	_ship_body.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	_ship_body.custom_minimum_size = Vector2(0.0, 70.0)
+	# The AsciiMap is now a sub-scene; wire its town_selected signal here (it
+	# used to be wired in _build_layout right after .new()).
+	var map: AsciiMap = $Split/WorldMap
+	map.town_selected.connect(_on_town_selected)
+	# EventLog now self-subscribes to EventBus.message; game_ui no longer owns
+	# the log label or the ring buffer. The old welcome messages are emitted
+	# directly so the log scene picks them up.
 	EventBus.day_advanced.connect(_on_day_advanced)
-	EventBus.message.connect(_on_message)
 	EventBus.trade_completed.connect(_on_trade_completed)
 	EventBus.town_updated.connect(_on_town_updated)
 	EventBus.ship_docked.connect(_on_ship_docked)
 	_refresh_all()
+	EventBus.message.emit("UI ready — docked at Tortuga. Trade, edit the route, then Depart.")
+	EventBus.message.emit("Space pause · 1/2/3 speed · click a town to inspect it.")
 
 # ----------------------------------------------------------------- public api --
 
@@ -81,135 +77,17 @@ func select_town(town_id: String) -> void:
 	_render_town()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
-	_rebuild_diplo_panel()   # Stage A3.1
-
-# -------------------------------------------------------------------- layout --
-
-func _build_layout() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Color(0.05, 0.07, 0.11)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
-	var split := HSplitContainer.new()
-	split.set_anchors_preset(Control.PRESET_FULL_RECT)
-	split.offset_left = 6.0
-	split.offset_top = 6.0
-	split.offset_right = -6.0
-	split.offset_bottom = -6.0
-	add_child(split)
-
-	# Left: the ASCII map.
-	var map: AsciiMap = load("res://ui/ascii_map.gd").new()
-	map.town_selected.connect(_on_town_selected)
-	split.add_child(map)
-
-	# Right: a vertical stack of panels.
-	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(640.0, 0.0)   # Stage A3.1: widened 560->640 to fit Diplomacy panel
-	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 4)
-	split.add_child(right)
-
-	# --- top bar: speed buttons + day + money ---
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 6)
-	right.add_child(top)
-	var specs: Array = [["Pause", 0], ["1x", 1], ["2x", 2], ["3x", 3]]
-	for spec in specs:
-		var b := Button.new()
-		b.text = String(spec[0])
-		b.add_theme_font_override("font", _font)
-		b.add_theme_font_size_override("font_size", 14)
-		b.custom_minimum_size = Vector2(56.0, 28.0)
-		b.pressed.connect(_set_speed.bind(int(spec[1])))
-		top.add_child(b)
-		_speed_buttons.append(b)
-	_day_label = _mklabel(top, "Day 0 · Wk 0", 15, Color(0.9, 0.9, 0.9))
-	_day_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_money_label = _mklabel(top, "$ 0", 15, Color(0.45, 0.9, 0.5))
-
-	right.add_child(_sep())
-
-	# --- town panel: title + (read-only table | trade panel) ---
-	_town_title = _mklabel(right, "— Town —", 15, Color(1.0, 0.8, 0.2))
-	_town_body = _mklabel(right, "", 13, Color(0.85, 0.85, 0.85))
-	_town_body.custom_minimum_size = Vector2(0.0, 150.0)
-	_trade_panel = VBoxContainer.new()
-	_trade_panel.add_theme_constant_override("separation", 2)
-	_trade_panel.visible = false
-	right.add_child(_trade_panel)
-
-	right.add_child(_sep())
-
-	# --- ship panel ---
-	_mklabel(right, "— Ship —", 15, Color(1.0, 0.8, 0.2))
-	_ship_body = _mklabel(right, "", 13, Color(0.85, 0.85, 0.85))
-	_ship_body.custom_minimum_size = Vector2(0.0, 70.0)
-
-	# --- route panel (inline editor) ---
-	_mklabel(right, "— Route —", 15, Color(1.0, 0.8, 0.2))
-	_route_panel = VBoxContainer.new()
-	_route_panel.add_theme_constant_override("separation", 2)
-	right.add_child(_route_panel)
-
-	right.add_child(_sep())
-
-	# --- Stage A3.1: diplomacy panel (bribe + citizenship per state) ---
-	_mklabel(right, "— Diplomacy —", 15, Color(1.0, 0.8, 0.2))
-	_diplo_panel = VBoxContainer.new()
-	_diplo_panel.add_theme_constant_override("separation", 2)
-	right.add_child(_diplo_panel)
-
-	right.add_child(_sep())
-
-	# --- event log ---
-	_mklabel(right, "— Log —", 15, Color(1.0, 0.8, 0.2))
-	_log_label = _mklabel(right, "", 12, Color(0.65, 0.8, 0.65))
-	_log_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-func _mklabel(parent: Control, text: String, fs: int, color: Color) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_override("font", _font)
-	l.add_theme_font_size_override("font_size", fs)
-	l.add_theme_color_override("font_color", color)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	parent.add_child(l)
-	return l
-
-func _mkbutton(parent: Control, text: String, callable: Callable, w: float, h: float, fs: int, color: Color) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.add_theme_font_override("font", _font)
-	b.add_theme_font_size_override("font_size", fs)
-	b.add_theme_color_override("font_color", color)
-	b.custom_minimum_size = Vector2(w, h)
-	b.pressed.connect(callable)
-	parent.add_child(b)
-	return b
-
-func _sep() -> HSeparator:
-	var s := HSeparator.new()
-	s.add_theme_constant_override("separation", 2)
-	return s
-
-func _clear(c: Node) -> void:
-	for child in c.get_children():
-		child.free()
+	_rebuild_diplo_panel()
 
 # -------------------------------------------------------------- signal ops --
 
 func _on_day_advanced(_day: int) -> void:
-	_render_clock()
-	_render_money()
 	_render_ship()
 	_render_town()
 	_rebuild_trade_panel()
-	# Refresh the diplomacy panel (state-pair relations + active
-	# wars + per-state rep) on the weekly boundary — wars/relations only change
-	# in WarSystem.roll_weekly, which fires when the week advances, so a weekly
+	# Refresh the diplomacy panel (state-pair relations + active wars + per-state
+	# rep) on the weekly boundary — wars/relations only change in
+	# WarSystem.roll_weekly, which fires when the week advances, so a weekly
 	# rebuild stays in sync without daily reflow of the button rows.
 	if _day % 7 == 0:
 		_rebuild_diplo_panel()
@@ -236,45 +114,25 @@ func _on_ship_docked(ship_id: String, _town_id: String) -> void:
 	_render_town()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
-	_rebuild_diplo_panel()   # Stage A3.1
-	_highlight_speed()
+	_rebuild_diplo_panel()
+	_hud.call("refresh")
 
 func _on_trade_completed(_town_id: String, _good_id: String, _qty: float, _price: float) -> void:
 	# trade_system already emitted a human-readable message; refresh the
-	# wallet/cargo/stock displays without waiting for the next day.
-	_render_money()
+	# wallet/cargo/stock displays without waiting for the next day. (HUD owns
+	# clock+money now; it subscribes to day_advanced directly, so no manual
+	# clock/money refresh is needed here.)
 	_render_ship()
 	_render_town()
 	_rebuild_trade_panel()
 
-func _on_message(text: String) -> void:
-	_log_lines.append("[d%d] %s" % [SimulationClock.day, text])
-	while _log_lines.size() > LOG_LINES:
-		_log_lines.pop_front()
-	_log_label.text = "\n".join(PackedStringArray(_log_lines))
-
-func _set_speed(tier: int) -> void:
-	_controller.call("set_speed", tier)
-	_highlight_speed()
-
-func _highlight_speed() -> void:
-	var cur: int = int(_controller.call("get_speed"))
-	for i in range(_speed_buttons.size()):
-		var on: bool = (i == cur)
-		_speed_buttons[i].add_theme_color_override("font_color",
-				Color(1.0, 0.9, 0.2) if on else Color(0.75, 0.78, 0.82))
-
 func _refresh_all() -> void:
-	_render_clock()
-	_render_money()
 	_render_town()
 	_render_ship()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
-	_rebuild_diplo_panel()   # Stage A3.1
-	_on_message("UI ready — docked at Tortuga. Trade, edit the route, then Depart.")
-	_on_message("Space pause · 1/2/3 speed · click a town to inspect it.")
-	_highlight_speed()
+	_rebuild_diplo_panel()
+	_hud.call("refresh")
 
 # ------------------------------------------------------- trade & route buttons --
 
@@ -305,20 +163,22 @@ func _on_route_move(town_id: String, dir: int) -> void:
 func _after_trade() -> void:
 	# A buy/sell changed wallet, hold and town stock — refresh everything that
 	# shows those, including the per-good rows (hold number, stock number).
-	_render_money()
 	_render_ship()
 	_render_town()
 	_rebuild_trade_panel()
 
 func _after_route_edit() -> void:
 	_render_ship()
-	_render_money()
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
-	_rebuild_diplo_panel()   # Stage A3.1
-	_highlight_speed()
+	_rebuild_diplo_panel()
+	_hud.call("refresh")
 
 # -------------------------------------------------------------- panel builders --
+
+func _clear(c: Node) -> void:
+	for child in c.get_children():
+		child.free()
 
 func _dock_town_id() -> String:
 	return String(_controller.call("player_dock_town_id"))
@@ -351,25 +211,25 @@ func _rebuild_trade_panel() -> void:
 	var hdr := HBoxContainer.new()
 	hdr.add_theme_constant_override("separation", 6)
 	_trade_panel.add_child(hdr)
-	_mklabel(hdr, "Docked at %s [%s]" % [t.name, st_name], 14, Color(0.5, 0.85, 1.0))
+	UITheme.make_label(hdr, "Docked at %s [%s]" % [t.name, st_name], 14, Color(0.5, 0.85, 1.0))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(spacer)
-	var dep := _mkbutton(hdr, "Depart -> %s" % next_name, Callable(self, "_on_depart"),
+	var dep := UITheme.make_button(hdr, "Depart -> %s" % next_name, Callable(self, "_on_depart"),
 			150.0, 26.0, 13, Color(1.0, 0.9, 0.2))
 	if next_id == "" or next_id == dock:
 		dep.disabled = true
 	# port economic readout — population, market fund, satisfaction, and
 	# the customs tax rate. The docked view used to clear this entirely; now it
 	# shows the same context the read-only inspection view does.
-	_mklabel(_trade_panel, "pop %d · fund $%.0f · sat %d%% · tax %d%%" %
+	UITheme.make_label(_trade_panel, "pop %d · fund $%.0f · sat %d%% · tax %d%%" %
 			[int(t.total_population()), t.market.fund, int(t.satisfaction * 100.0), tax_pct],
 			12, Color(0.6, 0.65, 0.7))
 
 	# Column header. U1: dem/sup columns added so the docked player sees market
 	# pressure at the port they're trading in (the read-only inspection view
 	# already had them; the docked trade panel dropped them).
-	_mklabel(_trade_panel, "%-12s %6s %7s %4s %4s %4s" %
+	UITheme.make_label(_trade_panel, "%-12s %6s %7s %4s %4s %4s" %
 			["good", "stock", "price", "dem", "sup", "hold"],
 			12, Color(0.55, 0.6, 0.65))
 
@@ -386,31 +246,31 @@ func _rebuild_trade_panel() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 3)
 		_trade_panel.add_child(row)
-		var lab := _mklabel(row, "%-12s %6.1f %7.2f %4.0f %4.0f %4.0f" %
+		var lab := UITheme.make_label(row, "%-12s %6.1f %7.2f %4.0f %4.0f %4.0f" %
 				[String(gid), e.stock, e.current_price, e.daily_demand, e.daily_supply, hold],
 				12, Color(0.85, 0.85, 0.85))
 		lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_mkbutton(row, "Buy 1", Callable(self, "_on_buy").bind(String(gid), 1.0), 50.0, 22.0, 12, Color(0.5, 0.9, 0.55))
-		_mkbutton(row, "Buy 10", Callable(self, "_on_buy").bind(String(gid), 10.0), 58.0, 22.0, 12, Color(0.5, 0.9, 0.55))
-		_mkbutton(row, "Sell 1", Callable(self, "_on_sell").bind(String(gid), 1.0), 52.0, 22.0, 12, Color(0.95, 0.6, 0.55))
-		_mkbutton(row, "Sell 10", Callable(self, "_on_sell").bind(String(gid), 10.0), 60.0, 22.0, 12, Color(0.95, 0.6, 0.55))
-		_mkbutton(row, "All", Callable(self, "_on_sell").bind(String(gid), 99999.0), 40.0, 22.0, 12, Color(0.95, 0.6, 0.55))
+		UITheme.make_button(row, "Buy 1", Callable(self, "_on_buy").bind(String(gid), 1.0), 50.0, 22.0, 12, Color(0.5, 0.9, 0.55))
+		UITheme.make_button(row, "Buy 10", Callable(self, "_on_buy").bind(String(gid), 10.0), 58.0, 22.0, 12, Color(0.5, 0.9, 0.55))
+		UITheme.make_button(row, "Sell 1", Callable(self, "_on_sell").bind(String(gid), 1.0), 52.0, 22.0, 12, Color(0.95, 0.6, 0.55))
+		UITheme.make_button(row, "Sell 10", Callable(self, "_on_sell").bind(String(gid), 10.0), 60.0, 22.0, 12, Color(0.95, 0.6, 0.55))
+		UITheme.make_button(row, "All", Callable(self, "_on_sell").bind(String(gid), 99999.0), 40.0, 22.0, 12, Color(0.95, 0.6, 0.55))
 
 func _rebuild_route_panel() -> void:
 	_clear(_route_panel)
 	var ship: Ship = WorldState.get_player_ship()
 	if ship == null:
-		_mklabel(_route_panel, "(no ship)", 12, Color(0.6, 0.6, 0.6))
+		UITheme.make_label(_route_panel, "(no ship)", 12, Color(0.6, 0.6, 0.6))
 		return
 	var route: TradeRoute = WorldState.get_route(ship.route_id)
 	if route == null:
-		_mklabel(_route_panel, "(no route)", 12, Color(0.6, 0.6, 0.6))
+		UITheme.make_label(_route_panel, "(no route)", 12, Color(0.6, 0.6, 0.6))
 		return
 	# Bugfix: do NOT early-return on empty stops — the "+ Add" button below
 	# is the ONLY way to put the first town back into an emptied route.
 	# Render the hint label and fall through.
 	if route.stops.is_empty():
-		_mklabel(_route_panel, "(empty — click a town then + Add)", 12, Color(0.6, 0.6, 0.6))
+		UITheme.make_label(_route_panel, "(empty — click a town then + Add)", 12, Color(0.6, 0.6, 0.6))
 	var dock: String = _dock_town_id()
 	for i in range(route.stops.size()):
 		var sid: String = String(route.stops[i])
@@ -419,10 +279,10 @@ func _rebuild_route_panel() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 3)
 		_route_panel.add_child(row)
-		_mkbutton(row, "Up", Callable(self, "_on_route_move").bind(sid, -1), 30.0, 20.0, 11, Color(0.75, 0.78, 0.82))
-		_mkbutton(row, "Dn", Callable(self, "_on_route_move").bind(sid, 1), 30.0, 20.0, 11, Color(0.75, 0.78, 0.82))
-		_mklabel(row, "%s %s" % [mark, tt.name if tt != null else sid], 12, Color(0.85, 0.85, 0.85))
-		_mkbutton(row, "Del", Callable(self, "_on_route_remove").bind(sid), 34.0, 20.0, 11, Color(0.95, 0.6, 0.55))
+		UITheme.make_button(row, "Up", Callable(self, "_on_route_move").bind(sid, -1), 30.0, 20.0, 11, Color(0.75, 0.78, 0.82))
+		UITheme.make_button(row, "Dn", Callable(self, "_on_route_move").bind(sid, 1), 30.0, 20.0, 11, Color(0.75, 0.78, 0.82))
+		UITheme.make_label(row, "%s %s" % [mark, tt.name if tt != null else sid], 12, Color(0.85, 0.85, 0.85))
+		UITheme.make_button(row, "Del", Callable(self, "_on_route_remove").bind(sid), 34.0, 20.0, 11, Color(0.95, 0.6, 0.55))
 	# Add the currently selected town (disabled if already in the route or empty).
 	var add_row := HBoxContainer.new()
 	add_row.add_theme_constant_override("separation", 4)
@@ -430,7 +290,7 @@ func _rebuild_route_panel() -> void:
 	var sel: Town = WorldState.get_town(_selected_town)
 	var sel_name: String = sel.name if sel != null else _selected_town
 	var already: bool = route != null and route.stops.has(_selected_town)
-	var add_btn := _mkbutton(add_row, "+ Add %s" % sel_name, Callable(self, "_on_route_add"),
+	var add_btn := UITheme.make_button(add_row, "+ Add %s" % sel_name, Callable(self, "_on_route_add"),
 			130.0, 22.0, 12, Color(0.5, 0.85, 1.0))
 	add_btn.disabled = already or _selected_town == ""
 
@@ -447,7 +307,7 @@ func _rebuild_diplo_panel() -> void:
 	_clear(_diplo_panel)
 	var company: Company = WorldState.get_company("player")
 	if company == null:
-		_mklabel(_diplo_panel, "(no company)", 12, Color(0.6, 0.6, 0.6))
+		UITheme.make_label(_diplo_panel, "(no company)", 12, Color(0.6, 0.6, 0.6))
 		return
 	var ship: Ship = WorldState.get_player_ship()
 	var flag_now: String = ship.flag_state if ship != null else ""
@@ -457,16 +317,16 @@ func _rebuild_diplo_panel() -> void:
 		row.add_theme_constant_override("separation", 4)
 		_diplo_panel.add_child(row)
 		var flag_mark: String = "★" if s.id == flag_now else "  "
-		_mklabel(row, "%s %-12s" % [flag_mark, s.name], 12, Color(0.85, 0.85, 0.85))
+		UITheme.make_label(row, "%s %-12s" % [flag_mark, s.name], 12, Color(0.85, 0.85, 0.85))
 		var rep_color: Color = Color(0.45, 0.85, 0.45) if rep >= 0.0 else Color(0.95, 0.55, 0.45)
-		_mklabel(row, "rep %+5.0f" % rep, 12, rep_color)
+		UITheme.make_label(row, "rep %+5.0f" % rep, 12, rep_color)
 		var bribe_cost: float = 500.0 * (1.0 + max(0.0, -rep / 50.0))
 		var last_week: int = int(company.bribe_cooldowns.get(s.id, -999))
 		var on_cd: bool = SimulationClock.week - last_week < 4
-		var bribe_btn := _mkbutton(row, "Bribe %.0f" % bribe_cost, Callable(self, "_on_bribe").bind(s.id),
+		var bribe_btn := UITheme.make_button(row, "Bribe %.0f" % bribe_cost, Callable(self, "_on_bribe").bind(s.id),
 			80.0, 20.0, 11, Color(0.85, 0.75, 0.45))
 		bribe_btn.disabled = on_cd or company.money < bribe_cost
-		var cit_btn := _mkbutton(row, "Citizenship", Callable(self, "_on_citizenship").bind(s.id),
+		var cit_btn := UITheme.make_button(row, "Citizenship", Callable(self, "_on_citizenship").bind(s.id),
 			90.0, 20.0, 11, Color(0.55, 0.75, 0.95))
 		cit_btn.disabled = rep <= 50.0 or company.money < 5000.0 or s.id == flag_now
 	# --- State↔state relations matrix + active wars ---
@@ -474,8 +334,8 @@ func _rebuild_diplo_panel() -> void:
 	# the player's own standing). Wars block enemy-flag docking (ShipsTick) and
 	# double customs for foreign traders (TradeSystem war tariff), so seeing
 	# them here is what makes route planning + citizenship tactical.
-	_diplo_panel.add_child(_sep())
-	_mklabel(_diplo_panel, "— state relations —", 12, Color(0.7, 0.75, 0.7))
+	_diplo_panel.add_child(UITheme.make_separator())
+	UITheme.make_label(_diplo_panel, "— state relations —", 12, Color(0.7, 0.75, 0.7))
 	# Active wars summary line (or "(no active wars)" in peacetime).
 	var war_parts: PackedStringArray = PackedStringArray()
 	for w in WorldState.active_wars:
@@ -486,7 +346,7 @@ func _rebuild_diplo_panel() -> void:
 		war_parts.append("%s ↔ %s" % [na, nb])
 	var war_txt: String = ("⚔ " + ", ".join(war_parts)) if war_parts.size() > 0 else "(no active wars)"
 	var war_col: Color = Color(0.95, 0.4, 0.4) if war_parts.size() > 0 else Color(0.5, 0.6, 0.5)
-	_mklabel(_diplo_panel, war_txt, 11, war_col)
+	UITheme.make_label(_diplo_panel, war_txt, 11, war_col)
 	# One row per state pair (C(N,2), deterministic order): relation value
 	# colored by warmth — red+⚔ at war, orange <= -40, yellow < 0, green >= 0.
 	var sarr: Array = WorldState.states
@@ -509,7 +369,7 @@ func _rebuild_diplo_panel() -> void:
 				rc = Color(0.95, 0.85, 0.4)
 			else:
 				rc = Color(0.5, 0.85, 0.5)
-			_mklabel(rrow, "%s %-11s ↔ %-11s %+5.0f" % [mark, a.name, b.name, rel], 11, rc)
+			UITheme.make_label(rrow, "%s %-11s ↔ %-11s %+5.0f" % [mark, a.name, b.name, rel], 11, rc)
 
 func _on_bribe(state_id: String) -> void:
 	_controller.call("bribe_state", state_id)
@@ -520,18 +380,10 @@ func _on_citizenship(state_id: String) -> void:
 	call_deferred("_after_diplo_edit")
 
 func _after_diplo_edit() -> void:
-	_render_money()
 	_render_ship()
 	_rebuild_diplo_panel()
 
 # -------------------------------------------------------------- rendering --
-
-func _render_clock() -> void:
-	_day_label.text = "Day %d · Wk %d" % [SimulationClock.day, SimulationClock.week]
-
-func _render_money() -> void:
-	var co: Company = WorldState.get_company("player")
-	_money_label.text = "$ %.0f" % (co.money if co != null else 0.0)
 
 func _render_town() -> void:
 	var t: Town = WorldState.get_town(_selected_town)

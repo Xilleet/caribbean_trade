@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/panels/town_panel.gd" id="1_town"]
+
+[node name="TownPanel" type="VBoxContainer"]
+script = ExtResource("1_town")
+theme_override_constants/separation = 2
+
+[node name="TownTitle" type="Label" parent="."]
+unique_name_in_owner = true
+text = "— Town —"
+
+[node name="TownBody" type="Label" parent="."]
+unique_name_in_owner = true
+
+[node name="TradeSlot" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+theme_override_constants/separation = 2
