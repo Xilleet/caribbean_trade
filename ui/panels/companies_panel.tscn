@@ -10,8 +10,29 @@ theme_override_constants/separation = 2
 unique_name_in_owner = true
 text = "— Companies —"
 
-[node name="Header" type="Label" parent="."]
+[node name="Header" type="HBoxContainer" parent="."]
 unique_name_in_owner = true
+theme_override_constants/separation = 0
+
+[node name="HName" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "company"
+
+[node name="HMoney" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "money"
+
+[node name="HDelta" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "d/day"
+
+[node name="HShips" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "ships"
+
+[node name="HLoans" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "loans / status"
 
 [node name="List" type="VBoxContainer" parent="."]
 unique_name_in_owner = true

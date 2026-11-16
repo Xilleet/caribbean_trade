@@ -1,0 +1,41 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/panels/politics_panel.gd" id="1_po"]
+
+[node name="PoliticsPanel" type="VBoxContainer"]
+script = ExtResource("1_po")
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="."]
+unique_name_in_owner = true
+text = "— Politics —"
+
+[node name="Matrix" type="Label" parent="."]
+unique_name_in_owner = true
+
+[node name="Sep1" type="HSeparator" parent="."]
+theme_override_constants/separation = 2
+
+[node name="WarsHeader" type="Label" parent="."]
+unique_name_in_owner = true
+text = "— Active wars —"
+
+[node name="Wars" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+theme_override_constants/separation = 1
+
+[node name="Sep2" type="HSeparator" parent="."]
+theme_override_constants/separation = 2
+
+[node name="RepHeader" type="Label" parent="."]
+unique_name_in_owner = true
+text = "— Player reputation —"
+
+[node name="Rep" type="Label" parent="."]
+unique_name_in_owner = true
+
+[node name="Sep3" type="HSeparator" parent="."]
+theme_override_constants/separation = 2
+
+[node name="Counters" type="Label" parent="."]
+unique_name_in_owner = true
