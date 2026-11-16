@@ -3,3 +3,4 @@
 .vscode/settings.json
 .obsidian/
 *.uid
+sim_output/

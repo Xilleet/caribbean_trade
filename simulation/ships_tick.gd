@@ -21,6 +21,13 @@ var ai_brain: AIBrain   # Price-responsive decision engine for AI ships
 # routes ~45%. Storm/pirate repair upkeep is NOT crew wages — it stays on
 # add_to_all_pops (it's repair work done locally, not a crew stipend).
 const CREW_WAGE_PER_DAY: float = 0.3
+# C5 (soft death prevention): a ship at $0 can still sail up to this many days
+# on a negative balance (one day's upkeep is debited even when money < upkeep)
+# so it can reach the next port and sell cargo instead of softlocking idle
+# forever — the pre-C5 dead-end was "$0 → idle → no revenue → game over with
+# no UI". Real bankruptcy + a proper credit_limit arrive in C4; this is the
+# interim floor that prevents the dead-end without modelling a lender.
+const SOFT_CREDIT_GRACE_DAYS: int = 7
 
 func _init(p_trade: TradeSystem, p_market: MarketSystem) -> void:
 	trade_system = p_trade
@@ -46,9 +53,16 @@ func _step_ship(ship: Ship) -> void:
 	# paid to the same local town (company -> population_money, conserved).
 	var storm_extra: float = WorldState.storm_extra_upkeep(ship)
 	var base_upkeep: float = ship.upkeep_daily
-	if company.money < base_upkeep:
+	# C5 (soft death prevention): debit upkeep even when money < base_upkeep, so
+	# the ship sails (on a negative balance) instead of idling at $0. The debit
+	# still credits crew wages + port services, so conservation holds. A TRUE
+	# strand happens only at the credit floor (-(upkeep × GRACE_DAYS)); real
+	# bankruptcy/credit_limit is C4. This closes the pre-C5 dead-end where a $0
+	# ship idled forever with no revenue and no game-over screen.
+	var credit_floor: float = -(base_upkeep * float(SOFT_CREDIT_GRACE_DAYS))
+	if company.money <= credit_floor:
 		if ship.state != "idle":
-			EventBus.message.emit("%s idle — no upkeep funds" % ship.id)
+			EventBus.message.emit("%s idle — credit exhausted" % ship.id)
 		ship.state = "idle"
 		return
 	company.money -= base_upkeep
