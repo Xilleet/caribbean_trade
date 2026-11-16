@@ -1,35 +1,50 @@
 extends Control
 
-## Stage UI-1 game_ui — the right-column controller + the still-dynamic panels.
+## Stage UI-3 game_ui — the right-column controller with a 3-page tab switch.
 ##
-## This used to be a single Control that built its whole subtree in code
-## (_build_layout: HSplit -> AsciiMap + right VBox of top bar / town / ship /
-## route / diplomacy / log). Stage UI-1 moves the static parts into scenes:
+## UI-1 split the static parts into scenes (hud/town_panel/event_log/world_map)
+## and UI-1-fix made their roots real Containers so they lay out. UI-3 takes
+## the next step: the right column is now HUD + a 3-button tab bar + a page
+## stack, so the player navigates between views instead of scrolling one giant
+## column:
 ##
-##   ui/map/world_map.tscn      — AsciiMap (already class_name, now a scene)
-##   ui/hud/hud.tscn            — top bar (speed + day + money)
-##   ui/panels/town_panel.tscn  — "— Town —" title + price-memory body + a slot
-##   ui/log/event_log.tscn      — "— Log —" + the ring-buffer message view
-##   ui/game_ui.tscn            — the skeleton above, instantiating those
+##   Main page  — Ship readout + Route + Diplomacy (the player's daily ops).
+##                Route/Diplo are still built in code here; UI-4 will scene them
+##                and move each to its own tab.
+##   Town page  — TownPanel (price-memory inspection, or the trade panel when
+##                docked). Auto-selected on map click and on dock, so the trade
+##                flow (dock -> trade -> depart) stays one click away.
+##   Log page   — EventLog. Self-contained (subscribes to EventBus.message
+##                itself), keeps buffering while hidden.
 ##
-## What stays in this script (data-driven by nature — not worth a scene):
-##   - the dynamic per-good trade rows (built per click / dock),
-##   - the dynamic per-stop route rows,
-##   - the dynamic per-state diplomacy rows + state-pair relations matrix,
-##   - the ship readout (one multiline label, recomputed each refresh).
-## These read WorldState / SimulationClock and emit through EventBus exactly
-## as before; the controller (main.gd) still owns every mutation. No economic
-## state is held here, so determinism and money conservation are unaffected.
+## HUD stays visible on every page (speed/day/money are global). Selecting a
+## town or docking flips to the Town page automatically; the tab buttons are
+## the way back to Main / Log. No economic state is held here — same reads
+## (WorldState / SimulationClock) and same EventBus emissions as before, so
+## determinism and money conservation are unaffected.
 ##
 ## The public surface main.gd / AsciiMap relied on is unchanged: select_town
-## and the _on_* signal handlers. main.gd loads this scene instead of .new().
+## and the _on_* signal handlers.
+
+const TAB_MAIN: int = 0
+const TAB_TOWN: int = 1
+const TAB_LOG: int = 2
 
 var _controller: Node = null          # the Main root node (owns the engine)
 var _selected_town: String = "tortuga"
+var _tab: int = TAB_MAIN
 
 # Static view nodes from the scene (sub-scene internals via their scripts).
+# Stage UI-3: TownPanel and EventLog moved under Pages/{TownPage,LogPage};
+# Ship/Route/Diplo moved under Pages/MainPage.
 @onready var _hud: Control = $Split/Right/HUD
-@onready var _town_panel: Control = $Split/Right/TownPanel
+@onready var _tab_main_btn: Button = %TabMain
+@onready var _tab_town_btn: Button = %TabTown
+@onready var _tab_log_btn: Button = %TabLog
+@onready var _main_page: VBoxContainer = %MainPage
+@onready var _town_page: VBoxContainer = %TownPage
+@onready var _log_page: VBoxContainer = %LogPage
+@onready var _town_panel: Control = $Split/Right/Pages/TownPage/TownPanel
 @onready var _ship_body: Label = %ShipBody
 @onready var _route_panel: VBoxContainer = %RouteSlot
 @onready var _diplo_panel: VBoxContainer = %DiploSlot
@@ -41,11 +56,12 @@ var _selected_town: String = "tortuga"
 
 func _ready() -> void:
 	_controller = get_parent()
-	# Theme the two static labels game_ui still owns (ShipHeader / RouteHeader /
+	# Theme the static labels game_ui still owns (ShipHeader / RouteHeader /
 	# DiploHeader) and the dynamic body label, so they match the old look.
+	# UI-3: these labels now live under Pages/MainPage.
 	var f := UITheme.load_font()
 	for lname in ["ShipHeader", "RouteHeader", "DiploHeader"]:
-		var l: Label = get_node("Split/Right/" + lname)
+		var l: Label = get_node("Split/Right/Pages/MainPage/" + lname)
 		l.add_theme_font_override("font", f)
 		l.add_theme_font_size_override("font_size", 15)
 		l.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
@@ -53,6 +69,14 @@ func _ready() -> void:
 	_ship_body.add_theme_font_size_override("font_size", 13)
 	_ship_body.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 	_ship_body.custom_minimum_size = Vector2(0.0, 70.0)
+	# UI-3: theme the tab buttons (same font/size as HUD speed buttons) and wire
+	# them. Active-tab highlight is applied by _set_tab.
+	for b in [_tab_main_btn, _tab_town_btn, _tab_log_btn]:
+		b.add_theme_font_override("font", f)
+		b.add_theme_font_size_override("font_size", 13)
+	_tab_main_btn.pressed.connect(_set_tab.bind(TAB_MAIN))
+	_tab_town_btn.pressed.connect(_set_tab.bind(TAB_TOWN))
+	_tab_log_btn.pressed.connect(_set_tab.bind(TAB_LOG))
 	# The AsciiMap is now a sub-scene; wire its town_selected signal here (it
 	# used to be wired in _build_layout right after .new()).
 	var map: AsciiMap = $Split/WorldMap
@@ -65,8 +89,29 @@ func _ready() -> void:
 	EventBus.town_updated.connect(_on_town_updated)
 	EventBus.ship_docked.connect(_on_ship_docked)
 	_refresh_all()
+	_set_tab(TAB_MAIN)
 	EventBus.message.emit("UI ready — docked at Tortuga. Trade, edit the route, then Depart.")
+	EventBus.message.emit("Tabs: Main (ship/route/diplo) · Town (inspect/trade) · Log.")
 	EventBus.message.emit("Space pause · 1/2/3 speed · click a town to inspect it.")
+
+# -------------------------------------------------------------- tab switching --
+
+# Show exactly one page, highlight the active tab. Called on tab-button press
+# and on auto-select (click a town / dock). Idempotent — safe to call with the
+# current tab.
+func _set_tab(idx: int) -> void:
+	_tab = idx
+	_main_page.visible = (idx == TAB_MAIN)
+	_town_page.visible = (idx == TAB_TOWN)
+	_log_page.visible = (idx == TAB_LOG)
+	var active_color := Color(1.0, 0.9, 0.2)
+	var idle_color := Color(0.75, 0.78, 0.82)
+	_tab_main_btn.add_theme_color_override("font_color",
+			active_color if idx == TAB_MAIN else idle_color)
+	_tab_town_btn.add_theme_color_override("font_color",
+			active_color if idx == TAB_TOWN else idle_color)
+	_tab_log_btn.add_theme_color_override("font_color",
+			active_color if idx == TAB_LOG else idle_color)
 
 # ----------------------------------------------------------------- public api --
 
@@ -78,6 +123,9 @@ func select_town(town_id: String) -> void:
 	_rebuild_trade_panel()
 	_rebuild_route_panel()
 	_rebuild_diplo_panel()
+	# UI-3: clicking a town (or auto-select on dock) jumps to the Town page so
+	# the inspection / trade panel is immediately in view, not 3 screens down.
+	_set_tab(TAB_TOWN)
 
 # -------------------------------------------------------------- signal ops --
 
@@ -116,6 +164,9 @@ func _on_ship_docked(ship_id: String, _town_id: String) -> void:
 	_rebuild_route_panel()
 	_rebuild_diplo_panel()
 	_hud.call("refresh")
+	# UI-3: docking flips to the Town page so the trade panel is in view — the
+	# player's next action is almost always "trade here", not "scroll to Town".
+	_set_tab(TAB_TOWN)
 
 func _on_trade_completed(_town_id: String, _good_id: String, _qty: float, _price: float) -> void:
 	# trade_system already emitted a human-readable message; refresh the

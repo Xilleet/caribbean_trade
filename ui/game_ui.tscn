@@ -37,44 +37,81 @@ theme_override_constants/separation = 4
 [node name="HUD" parent="Split/Right" instance=ExtResource("3_hud")]
 size_flags_horizontal = 3
 
+[node name="TabBar" type="HBoxContainer" parent="Split/Right"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="TabMain" type="Button" parent="Split/Right/TabBar"]
+unique_name_in_owner = true
+text = "Main"
+custom_minimum_size = Vector2(80, 26)
+
+[node name="TabTown" type="Button" parent="Split/Right/TabBar"]
+unique_name_in_owner = true
+text = "Town"
+custom_minimum_size = Vector2(80, 26)
+
+[node name="TabLog" type="Button" parent="Split/Right/TabBar"]
+unique_name_in_owner = true
+text = "Log"
+custom_minimum_size = Vector2(80, 26)
+
 [node name="Sep1" type="HSeparator" parent="Split/Right"]
 theme_override_constants/separation = 2
 
-[node name="TownPanel" parent="Split/Right" instance=ExtResource("4_townpanel")]
+[node name="Pages" type="VBoxContainer" parent="Split/Right"]
+unique_name_in_owner = true
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="MainPage" type="VBoxContainer" parent="Split/Right/Pages"]
+unique_name_in_owner = true
 size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
-[node name="Sep2" type="HSeparator" parent="Split/Right"]
-theme_override_constants/separation = 2
-
-[node name="ShipHeader" type="Label" parent="Split/Right"]
+[node name="ShipHeader" type="Label" parent="Split/Right/Pages/MainPage"]
 unique_name_in_owner = true
 text = "— Ship —"
 
-[node name="ShipBody" type="Label" parent="Split/Right"]
+[node name="ShipBody" type="Label" parent="Split/Right/Pages/MainPage"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 70)
 
-[node name="RouteHeader" type="Label" parent="Split/Right"]
+[node name="RouteHeader" type="Label" parent="Split/Right/Pages/MainPage"]
 unique_name_in_owner = true
 text = "— Route —"
 
-[node name="RouteSlot" type="VBoxContainer" parent="Split/Right"]
+[node name="RouteSlot" type="VBoxContainer" parent="Split/Right/Pages/MainPage"]
 unique_name_in_owner = true
 theme_override_constants/separation = 2
 
-[node name="Sep3" type="HSeparator" parent="Split/Right"]
+[node name="Sep3" type="HSeparator" parent="Split/Right/Pages/MainPage"]
 theme_override_constants/separation = 2
 
-[node name="DiploHeader" type="Label" parent="Split/Right"]
+[node name="DiploHeader" type="Label" parent="Split/Right/Pages/MainPage"]
 unique_name_in_owner = true
 text = "— Diplomacy —"
 
-[node name="DiploSlot" type="VBoxContainer" parent="Split/Right"]
+[node name="DiploSlot" type="VBoxContainer" parent="Split/Right/Pages/MainPage"]
 unique_name_in_owner = true
 theme_override_constants/separation = 2
 
-[node name="Sep4" type="HSeparator" parent="Split/Right"]
-theme_override_constants/separation = 2
+[node name="TownPage" type="VBoxContainer" parent="Split/Right/Pages"]
+unique_name_in_owner = true
+visible = false
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
-[node name="EventLog" parent="Split/Right" instance=ExtResource("5_eventlog")]
+[node name="TownPanel" parent="Split/Right/Pages/TownPage" instance=ExtResource("4_townpanel")]
+size_flags_horizontal = 3
+
+[node name="LogPage" type="VBoxContainer" parent="Split/Right/Pages"]
+unique_name_in_owner = true
+visible = false
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="EventLog" parent="Split/Right/Pages/LogPage" instance=ExtResource("5_eventlog")]
 size_flags_vertical = 3
