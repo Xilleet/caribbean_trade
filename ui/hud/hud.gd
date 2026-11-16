@@ -89,4 +89,25 @@ func _render_clock() -> void:
 
 func _render_money() -> void:
 	var co: Company = WorldState.get_company("player")
-	_money_label.text = "$ %.0f" % (co.money if co != null else 0.0)
+	if co == null:
+		_money_label.text = "$ 0"
+		_money_label.add_theme_color_override("font_color", Color(0.45, 0.9, 0.5))
+		return
+	_money_label.text = "$ %.0f" % co.money
+	# C4 follow-up: colour-code the wallet by credit health.
+	#   green  — solvent (money >= 0)
+	#   yellow — in credit, but above half the floor (0 > money >= -limit/2)
+	#   red    — deep in credit, approaching the -credit_limit game-over floor
+	# (limit < 0 means deep in debt; -limit/2 is the halfway warning line.)
+	# Bankrupt companies are frozen by SimulationEngine, so the red state here
+	# is the last warning before the game-over modal (game_ui) fires.
+	var color: Color
+	if co.bankrupt:
+		color = Color(0.95, 0.4, 0.4)
+	elif co.money >= 0.0:
+		color = Color(0.45, 0.9, 0.5)
+	elif co.money >= -co.credit_limit() * 0.5:
+		color = Color(1.0, 0.85, 0.3)
+	else:
+		color = Color(0.95, 0.4, 0.4)
+	_money_label.add_theme_color_override("font_color", color)

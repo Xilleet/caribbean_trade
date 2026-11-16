@@ -81,6 +81,7 @@ func step_day() -> void:
 	for c in WorldState.companies:
 		if not c.bankrupt and c.money < -c.credit_limit():
 			c.bankrupt = true
+			EventBus.bankruptcy_declared.emit(c.id)
 			if c.id == "player":
 				EventBus.message.emit("GAME OVER — %s bankrupt (money %.0f below -credit_limit %.0f)" %
 						[c.name, c.money, c.credit_limit()])

@@ -63,6 +63,14 @@ var _tab: int = TAB_MAIN
 @onready var _ship_body: Label = %ShipBody
 @onready var _route_panel: VBoxContainer = %RouteSlot
 @onready var _diplo_panel: VBoxContainer = %DiploSlot
+# C4 follow-up: game-over modal shown when the player's company goes bankrupt.
+# A ColorRect dim + a centered VBox with the final stats and a Close button. The
+# modal stays on top (last child of GameUI) and absorbs mouse input while
+# visible, so the frozen sim can't be clicked through.
+@onready var _game_over_modal: ColorRect = %GameOverModal
+@onready var _game_over_body: Label = %Body
+@onready var _game_over_stats: Label = %Stats
+@onready var _game_over_dismiss: Button = %DismissBtn
 
 # Convenience accessors into the sub-scene's exposed nodes.
 @onready var _town_title: Label = _town_panel.title_label
@@ -95,6 +103,21 @@ func _ready() -> void:
 	_tab_log_btn.pressed.connect(_set_tab.bind(TAB_LOG))
 	_tab_companies_btn.pressed.connect(_set_tab.bind(TAB_COMPANIES))
 	_tab_politics_btn.pressed.connect(_set_tab.bind(TAB_POLITICS))
+	# C4 follow-up: theme + wire the game-over modal. The Close button just hides
+	# the modal (the sim stays frozen — there is no "continue" out of a terminal
+	# bankruptcy in Stage 1; the player reads the stats and closes).
+	for l in [%GameOverModal/Box/Title, _game_over_body, _game_over_stats]:
+		l.add_theme_font_override("font", f)
+	_game_over_body.add_theme_font_size_override("font_size", 14)
+	_game_over_body.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	_game_over_stats.add_theme_font_size_override("font_size", 13)
+	_game_over_stats.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	var gt: Label = %GameOverModal/Box/Title
+	gt.add_theme_font_size_override("font_size", 18)
+	gt.add_theme_color_override("font_color", Color(1.0, 0.5, 0.4))
+	_game_over_dismiss.add_theme_font_override("font", f)
+	_game_over_dismiss.add_theme_font_size_override("font_size", 14)
+	_game_over_dismiss.pressed.connect(_hide_game_over)
 	# The AsciiMap is now a sub-scene; wire its town_selected signal here (it
 	# used to be wired in _build_layout right after .new()).
 	var map: AsciiMap = $Split/WorldMap
@@ -106,11 +129,18 @@ func _ready() -> void:
 	EventBus.trade_completed.connect(_on_trade_completed)
 	EventBus.town_updated.connect(_on_town_updated)
 	EventBus.ship_docked.connect(_on_ship_docked)
+	# C4: the bankruptcy signal fires at the end of step_day AFTER the bankrupt
+	# flag is set (day_advanced fires before the flag flips, so we can't catch
+	# it there). We connect here and show the modal on the player's bankruptcy.
+	EventBus.bankruptcy_declared.connect(_on_bankruptcy_declared)
 	_refresh_all()
 	_set_tab(TAB_MAIN)
 	EventBus.message.emit("UI ready — docked at Tortuga. Trade, edit the route, then Depart.")
 	EventBus.message.emit("Tabs: Main (ship/route/diplo) · Town (inspect/trade) · Log · Companies (rivals) · Politics (wars).")
 	EventBus.message.emit("Space pause · 1/2/3 speed · click a town to inspect it.")
+	# C4: catch a save that loaded an already-bankrupt player (today the game
+	# always starts solvent, so this is a no-op in a fresh game).
+	_check_bankrupt()
 
 # -------------------------------------------------------------- tab switching --
 
@@ -163,6 +193,40 @@ func _on_day_advanced(_day: int) -> void:
 	# rebuild stays in sync without daily reflow of the button rows.
 	if _day % 7 == 0:
 		_rebuild_diplo_panel()
+	# C4: the engine emits bankruptcy_declared AFTER day_advanced (after the
+	# end-of-day bankruptcy check), so the modal is shown from that signal, not
+	# here. We only keep a _ready-time check for an already-bankrupt save state.
+
+# C4 follow-up: show the game-over modal when the player's company goes
+# bankrupt. Connected to EventBus.bankruptcy_declared, which the engine emits
+# at the END of step_day (after day_advanced, after the flag is set). AI
+# bankruptcies are ignored — only the player freezes the sim and gets a modal.
+# Idempotent: if the modal is already up, the second emit is a no-op.
+func _on_bankruptcy_declared(company_id: String) -> void:
+	if company_id != "player":
+		return
+	_check_bankrupt()
+
+# C4 follow-up: populate and show the game-over modal with the player's final
+# stats. The modal's ColorRect absorbs mouse input so the player can't click
+# behind it; the sim is frozen by the engine regardless. Called from
+# _on_bankruptcy_declared and from _ready (a save loading an already-bankrupt
+# company would otherwise show a frozen screen with no message).
+func _check_bankrupt() -> void:
+	var co: Company = WorldState.get_company("player")
+	if co == null or not co.bankrupt:
+		return
+	if _game_over_modal.visible:
+		return
+	var total_loans := 0.0
+	for k in co.loans.keys():
+		total_loans += float(co.loans[k])
+	_game_over_stats.text = "Day %d  ·  Money $%.0f  ·  Outstanding loans $%.0f  ·  Ships %d" \
+			% [SimulationClock.day, co.money, total_loans, co.ship_ids.size()]
+	_game_over_modal.visible = true
+
+func _hide_game_over() -> void:
+	_game_over_modal.visible = false
 
 func _on_town_updated(town_id: String) -> void:
 	if town_id == _selected_town:
@@ -445,6 +509,37 @@ func _rebuild_diplo_panel() -> void:
 			else:
 				rc = Color(0.5, 0.85, 0.5)
 			UITheme.make_label(rrow, "%s %-11s ↔ %-11s %+5.0f" % [mark, a.name, b.name, rel], 11, rc)
+	# --- C4: Loans section ---
+	# The player's credit floor + outstanding loans per state, with Borrow /
+	# Repay buttons. Borrow moves state.treasury -> company.money (conserved,
+	# capped at the state's available cash); Repay moves it back, capped at the
+	# outstanding principal AND the company's money. Weekly 1% interest accrues
+	# in step_week. Both delegate to Main.take_loan / repay_loan. Borrow is
+	# disabled when the company is already bankrupt; Repay is disabled when
+	# nothing is owed to that state or the company has no cash. Refreshed weekly
+	# with the rest of the diplo panel (loans only change on borrow/repay/weekly
+	# interest, not daily).
+	_diplo_panel.add_child(UITheme.make_separator())
+	var limit: float = company.credit_limit()
+	UITheme.make_label(_diplo_panel, "— loans —  credit floor $%.0f" % limit, 12, Color(0.7, 0.75, 0.7))
+	for s in WorldState.states:
+		var owed: float = float(company.loans.get(s.id, 0.0))
+		var st: State = WorldState.get_state(s.id)
+		var avail: float = st.treasury if st != null else 0.0
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		_diplo_panel.add_child(row)
+		var owed_col: Color = Color(0.95, 0.6, 0.4) if owed > 0.0 else Color(0.55, 0.6, 0.6)
+		UITheme.make_label(row, "%-12s owed $%.0f  (treasury $%.0f)" % [s.name, owed, avail], 11, owed_col)
+		var borrow_btn := UITheme.make_button(row, "+$500", Callable(self, "_on_borrow").bind(s.id, 500.0),
+				54.0, 20.0, 11, Color(0.5, 0.85, 0.55))
+		borrow_btn.disabled = company.bankrupt or avail <= 0.0
+		var borrow_big := UITheme.make_button(row, "+$2000", Callable(self, "_on_borrow").bind(s.id, 2000.0),
+				60.0, 20.0, 11, Color(0.5, 0.85, 0.55))
+		borrow_big.disabled = company.bankrupt or avail <= 0.0
+		var repay_btn := UITheme.make_button(row, "Rep $500", Callable(self, "_on_repay").bind(s.id, 500.0),
+				58.0, 20.0, 11, Color(0.85, 0.75, 0.45))
+		repay_btn.disabled = owed <= 0.0 or company.money <= 0.0
 
 func _on_bribe(state_id: String) -> void:
 	_controller.call("bribe_state", state_id)
@@ -452,6 +547,16 @@ func _on_bribe(state_id: String) -> void:
 
 func _on_citizenship(state_id: String) -> void:
 	_controller.call("apply_citizenship", state_id)
+	call_deferred("_after_diplo_edit")
+
+# C4: borrow from / repay to a state bank. Delegates to Main; refreshes the
+# diplo panel (loans section) and the HUD money colour on the next idle frame.
+func _on_borrow(state_id: String, amount: float) -> void:
+	_controller.call("take_loan", state_id, amount)
+	call_deferred("_after_diplo_edit")
+
+func _on_repay(state_id: String, amount: float) -> void:
+	_controller.call("repay_loan", state_id, amount)
 	call_deferred("_after_diplo_edit")
 
 func _after_diplo_edit() -> void:

@@ -429,6 +429,48 @@ func apply_citizenship(state_id: String) -> void:
 		WorldState.adjust_player_rep(other.id, -10.0)
 	EventBus.message.emit("citizenship: %s -> %s (-%.0f, others -10 rep)" % [old_flag, st.name, CITIZENSHIP_COST])
 
+# C4 follow-up: borrow from a state bank. Delegates to Company.take_loan, which
+# moves money state.treasury -> company.money (conserved), caps at the state's
+# available treasury, and records principal in company.loans[state_id]. The
+# weekly interest accrues in SimulationEngine.step_week. No-op if bankrupt.
+# Emits a message with the actual amount lent (may be < requested if the state
+# is thin). The UI's borrow buttons are disabled at/below zero, but we re-check
+# here the same way bribe_state does — a deferred click or a stale panel could
+# otherwise slip a borrow through.
+func take_loan(state_id: String, amount: float) -> void:
+	var st: State = WorldState.get_state(state_id)
+	if st == null:
+		return
+	var company: Company = WorldState.get_company("player")
+	if company == null or company.bankrupt:
+		return
+	if amount <= 0.0:
+		return
+	var lent: float = company.take_loan(amount, state_id)
+	if lent > 0.0:
+		EventBus.message.emit("borrowed $%.0f from %s (treasury $%.0f)" % [lent, st.name, st.treasury])
+	else:
+		EventBus.message.emit("%s treasury too thin to lend $%.0f" % [st.name, amount])
+
+# C4 follow-up: repay part of an outstanding loan. Delegates to
+# Company.repay_loan, which caps the payment at both the outstanding principal
+# and the company's available money (can't repay money you don't have). Emits
+# a message with the actual amount repaid.
+func repay_loan(state_id: String, amount: float) -> void:
+	var st: State = WorldState.get_state(state_id)
+	if st == null:
+		return
+	var company: Company = WorldState.get_company("player")
+	if company == null or company.bankrupt:
+		return
+	if amount <= 0.0:
+		return
+	var paid: float = company.repay_loan(amount, state_id)
+	if paid > 0.0:
+		EventBus.message.emit("repaid $%.0f to %s (owed $%.0f)" % [paid, st.name, float(company.loans.get(state_id, 0.0))])
+	else:
+		EventBus.message.emit("can't repay %s: no outstanding loan or no cash" % st.name)
+
 # Read-only queries the UI panels use for layout.
 func player_dock_town_id() -> String:
 	var s: Ship = _player_ship()

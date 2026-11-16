@@ -147,3 +147,44 @@ theme_override_constants/separation = 4
 
 [node name="PoliticsPanel" parent="Split/Right/Pages/PoliticsPage" instance=ExtResource("7_politics")]
 size_flags_vertical = 3
+
+[node name="GameOverModal" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.0, 0.0, 0.0, 0.7)
+mouse_filter = 0
+
+[node name="Box" type="VBoxContainer" parent="GameOverModal"]
+unique_name_in_owner = true
+anchor_left = 0.25
+anchor_top = 0.3
+anchor_right = 0.75
+anchor_bottom = 0.7
+offset_left = 0.0
+offset_right = 0.0
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="GameOverModal/Box"]
+unique_name_in_owner = true
+text = "— Game Over —"
+horizontal_alignment = 1
+
+[node name="Body" type="Label" parent="GameOverModal/Box"]
+unique_name_in_owner = true
+horizontal_alignment = 1
+text = "Your trading company has gone bankrupt."
+
+[node name="Stats" type="Label" parent="GameOverModal/Box"]
+unique_name_in_owner = true
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="GameOverModal/Box"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="DismissBtn" type="Button" parent="GameOverModal/Box"]
+unique_name_in_owner = true
+text = "Close"
+custom_minimum_size = Vector2(120, 32)
+size_flags_horizontal = 4
