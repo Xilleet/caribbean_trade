@@ -39,6 +39,15 @@ func _init() -> void:
 	ships_tick = ShipsTick.new(trade_system, market_system)
 
 func step_day() -> void:
+	# C4: a bankrupt PLAYER company freezes the sim (game-over state). AI
+	# companies going bankrupt just go idle (their ships strand via C5); the
+	# sim continues for the player and other actors. The flag is set at the
+	# END of the day the floor is crossed (below), so the day that triggers
+	# bankruptcy still completes — the player sees the final state — and the
+	# NEXT day is frozen.
+	var player_co: Company = WorldState.get_company("player")
+	if player_co != null and player_co.bankrupt:
+		return
 	# snapshot each company's wallet at the start of the day, before any
 	# ticks move money. The UI reads `money - last_day_money` on day_advanced to
 	# show today's net delta — this is what makes the daily upkeep drain visible
@@ -63,6 +72,20 @@ func step_day() -> void:
 	EventBus.day_advanced.emit(SimulationClock.day)
 	if SimulationClock.day_of_week() == 0:
 		step_week()
+	# C4: end-of-day bankruptcy check. After all ticks (including a possible
+	# step_week on the week boundary), see if any company crossed its credit
+	# floor. Set bankrupt=true and emit a message. The player's flag freezes
+	# the sim starting NEXT step_day (the early-return above). AI companies
+	# just go idle — their ships strand via C5's per-ship floor, which fires
+	# well before this company-wide floor. No money moves here, drift=0.
+	for c in WorldState.companies:
+		if not c.bankrupt and c.money < -c.credit_limit():
+			c.bankrupt = true
+			if c.id == "player":
+				EventBus.message.emit("GAME OVER — %s bankrupt (money %.0f below -credit_limit %.0f)" %
+						[c.name, c.money, c.credit_limit()])
+			else:
+				EventBus.message.emit("%s bankrupt — ships stranded" % c.id)
 
 func step_week() -> void:
 	weekly_tick.reset_weekly()
@@ -75,6 +98,12 @@ func step_week() -> void:
 	# Stage A3: war rolls AFTER event rolls, so war declarations see the
 	# latest relations (which diplomatic incidents may have just shifted).
 	war_system.roll_weekly()
+	# C4: accrue weekly interest on outstanding company loans (simple interest
+	# on principal, 1%/week). Conserved: company.money -= interest, state.
+	# treasury += interest. Runs once per week after the town economy ticks so
+	# interest sees the post-dividend wallet. No-op for companies with no loans.
+	for c in WorldState.companies:
+		c.accrue_loan_interest()
 	SimulationClock.advance_week()
 	EventBus.week_advanced.emit(SimulationClock.week)
 

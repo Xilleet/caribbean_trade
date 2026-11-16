@@ -1896,6 +1896,94 @@ SoL 0.517; rent collected final week 264 → planter Pops. Все 17 suites PASS
 
 ---
 
+## C4 — банкротство игрока + кредиты (mechanic, без UI)
+
+Первый реальный fail-state. До C4 игру нельзя было проиграть — C5 (soft
+death) спасал от тупика `$0 → idle → game over без UI`, но не давал
+настоящего конца: корабли strand по одному, деньги ползут в минус, и сим
+просто вязнет. C4 ставит company-wide credit floor и game-over trigger.
+Loans (state bank) добавлены как recoverable-рычаг — игрок может занять у
+государства, чтобы пережить просадку, под 1%/нед (≈4%/мес, внутри 3-5% из
+дизайна). UI (краснение кошелька, warning modal, game-over screen) —
+отдельный батч после mechanic.
+
+### Что изменено
+
+**`entities/company.gd`** — 3 константы + 4 поля/метода:
+- `CREDIT_BASE=2000`, `CREDIT_PER_SHIP=500` → `credit_limit()` = getter
+  `2000 + 500×ship_ids.size()`. Не хранится — авто-трекает флот, drift=0.
+  1-корабль → лимит 2500, 4-корабля → 4000.
+- `bankrupt: bool` (sticky) — ставится end-of-day когда `money <
+  -credit_limit()`. Player bankrupt → `SimulationEngine.step_day`
+  early-return (sim freeze = game-over). AI bankrupt → просто маркер
+  (корабли уже strand через C5).
+- `loans: Dict[state_id → principal]` + `take_loan(amount, state_id)` /
+  `repay_loan(amount, state_id)` / `accrue_loan_interest()`.
+  Консервация: `state.treasury ↔ company.money`. take_loan capped at
+  state's available treasury; repay capped at owed AND at available money.
+- `LOAN_RATE_WEEKLY=0.01` (simple interest на principal, не compound).
+
+**`simulation/simulation_engine.gd`** — два хука:
+- `step_day` стартует с early-return если `player.bankrupt` (game-over
+  freeze). End-of-day (после всех тиков включая возможный `step_week`):
+  loop по `WorldState.companies`, ставит `bankrupt=true` если `money <
+  -credit_limit()`, эмитит `EventBus.message`. No money moves, drift=0.
+- `step_week` (после town loop, после event/war rolls, перед
+  `advance_week`): `for c in companies: c.accrue_loan_interest()`.
+  Conserved: company.money −= interest, state.treasury += interest.
+
+### Layering с C5 (НЕ замена — наслоение)
+
+C5 per-ship strand остаётся как БОЛЕЕ РАННИЙ сигнал. Для brigantine
+(upkeep 16): C5 floor = `-(16×7)` = **-112**, C4 floor = **-2500** (1
+корабль). Деньги падают → корабли strand по одному на -112 (C5, idle) →
+потом оставшиеся корабли продолжают drain → деньги пересекают -2500 →
+company bankrupt (C4, game-over). C5 не трогал; `test_c5_coexistence`
+проверяет что деньги между -112 и -2500 дают ship=idle + bankrupt=false.
+README dependency-строка обновлена: C5 — interim layer под C4, не
+полная замена.
+
+### Консервация (drift)
+
+- `credit_limit()` — pure getter, state-only → drift=0.
+- `bankrupt` flag — marker, no money moves → drift=0.
+- `take_loan`: `state.treasury −= X`, `company.money += X` → conserved.
+- `accrue_loan_interest`: `company.money −= interest`, `state.treasury +=
+  interest` → conserved.
+- `repay_loan`: `company.money −= X`, `state.treasury += X` → conserved.
+- 365d sim с loan 500: drift=-0.0000 (проверено `test_drift_365d`).
+
+### Тесты `tests/test_bankruptcy.gd` + `.tscn` (7 тестов)
+
+1. `credit_limit_grows_with_fleet` — getter формула, 1→2 корабля.
+2. `hit_floor_game_over` — money=-2510 → day1 ставит bankrupt=true, day2
+   frozen (money unchanged).
+3. `take_loan_conserved` — 1000 из england treasury, drift=0, owed=1000.
+4. `loan_interest_weekly` — interest=10.00 (1000×0.01), drift=0.
+5. `repay_loan_conserved` — repay 400, owed→600, drift=0.
+6. `c5_coexistence` — money=-128 (между -112 и -2500) → ship=idle,
+   bankrupt=false.
+7. `drift_365d` — loan 500, 365 дней, drift=-0.0000, не bankrupt.
+
+### Результаты
+
+Full suite **21/21 PASS** (было 20, +test_bankruptcy). 365d integration
+sim: drift=-0.0000, ни одна AI-компания не обанкротилась (нормальная игра
+profitable — C4 silent пока деньги не пересекут floor). C5 suite без
+изменений — regression-free.
+
+### TODO (out of this batch)
+
+- UI: кошелёк краснеет при `money < 0`, warning при `< credit_limit/2`,
+  modal game-over при bankrupt. Кнопка "Take loan" в компании-панели (выбор
+  state, сумма).
+- C3 (industry bankruptcy) — отдельная фича (`Industry.money < 0` + no
+  profit N weeks → closure). C4 ставит company-level floor; C3 ставит
+  industry-level.
+- AI company dissolution при bankrupt (сейчас просто маркер + ships idle).
+
+---
+
 ## TODO / known issues
 
 - `sim_output/sim_summary.txt` в репо устаревший — это срез мира до A2 (start
