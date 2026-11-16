@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://ui/game_ui.gd" id="1_gameui"]
 [ext_resource type="PackedScene" path="res://ui/map/world_map.tscn" id="2_worldmap"]
 [ext_resource type="PackedScene" path="res://ui/hud/hud.tscn" id="3_hud"]
 [ext_resource type="PackedScene" path="res://ui/panels/town_panel.tscn" id="4_townpanel"]
 [ext_resource type="PackedScene" path="res://ui/log/event_log.tscn" id="5_eventlog"]
+[ext_resource type="PackedScene" path="res://ui/panels/companies_panel.tscn" id="6_companies"]
 
 [node name="GameUI" type="Control"]
 script = ExtResource("1_gameui")
@@ -56,6 +57,11 @@ custom_minimum_size = Vector2(80, 26)
 unique_name_in_owner = true
 text = "Log"
 custom_minimum_size = Vector2(80, 26)
+
+[node name="TabCompanies" type="Button" parent="Split/Right/TabBar"]
+unique_name_in_owner = true
+text = "Companies"
+custom_minimum_size = Vector2(100, 26)
 
 [node name="Sep1" type="HSeparator" parent="Split/Right"]
 theme_override_constants/separation = 2
@@ -114,4 +120,14 @@ size_flags_vertical = 3
 theme_override_constants/separation = 4
 
 [node name="EventLog" parent="Split/Right/Pages/LogPage" instance=ExtResource("5_eventlog")]
+size_flags_vertical = 3
+
+[node name="CompaniesPage" type="VBoxContainer" parent="Split/Right/Pages"]
+unique_name_in_owner = true
+visible = false
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="CompaniesPanel" parent="Split/Right/Pages/CompaniesPage" instance=ExtResource("6_companies")]
 size_flags_vertical = 3

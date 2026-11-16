@@ -1,25 +1,29 @@
 extends Control
 
-## Stage UI-3 game_ui — the right-column controller with a 3-page tab switch.
+## Stage UI-4 game_ui — the right-column controller with a 4-page tab switch.
 ##
 ## UI-1 split the static parts into scenes (hud/town_panel/event_log/world_map)
-## and UI-1-fix made their roots real Containers so they lay out. UI-3 takes
-## the next step: the right column is now HUD + a 3-button tab bar + a page
-## stack, so the player navigates between views instead of scrolling one giant
-## column:
+## and UI-1-fix made their roots real Containers so they lay out. UI-3 added a
+## 3-button tab bar (Main/Town/Log) so the player navigates between views
+## instead of scrolling one giant column. UI-4 adds the first aggregate screen:
 ##
-##   Main page  — Ship readout + Route + Diplomacy (the player's daily ops).
-##                Route/Diplo are still built in code here; UI-4 will scene them
-##                and move each to its own tab.
-##   Town page  — TownPanel (price-memory inspection, or the trade panel when
-##                docked). Auto-selected on map click and on dock, so the trade
-##                flow (dock -> trade -> depart) stays one click away.
-##   Log page   — EventLog. Self-contained (subscribes to EventBus.message
-##                itself), keeps buffering while hidden.
+##   Main page      — Ship readout + Route + Diplomacy (the player's daily ops).
+##                   Route/Diplo are still built in code here; a later stage will
+##                   scene them and move each to its own tab.
+##   Town page      — TownPanel (price-memory inspection, or the trade panel
+##                   when docked). Auto-selected on map click and on dock.
+##   Log page       — EventLog. Self-contained (subscribes to EventBus.message
+##                   itself), keeps buffering while hidden.
+##   Companies page — CompaniesPanel. Self-contained (subscribes to
+##                   EventBus.day_advanced itself). Lists every company in the
+##                   world with money / day-delta / fleet / loans / bankrupt —
+##                   the first screen that shows the competition, which the old
+##                   UI never exposed.
 ##
 ## HUD stays visible on every page (speed/day/money are global). Selecting a
 ## town or docking flips to the Town page automatically; the tab buttons are
-## the way back to Main / Log. No economic state is held here — same reads
+## the way back to Main / Log / Companies. Companies is an overview screen, so
+## it is never auto-selected. No economic state is held here — same reads
 ## (WorldState / SimulationClock) and same EventBus emissions as before, so
 ## determinism and money conservation are unaffected.
 ##
@@ -29,6 +33,7 @@ extends Control
 const TAB_MAIN: int = 0
 const TAB_TOWN: int = 1
 const TAB_LOG: int = 2
+const TAB_COMPANIES: int = 3
 
 var _controller: Node = null          # the Main root node (owns the engine)
 var _selected_town: String = "tortuga"
@@ -36,14 +41,17 @@ var _tab: int = TAB_MAIN
 
 # Static view nodes from the scene (sub-scene internals via their scripts).
 # Stage UI-3: TownPanel and EventLog moved under Pages/{TownPage,LogPage};
-# Ship/Route/Diplo moved under Pages/MainPage.
+# Ship/Route/Diplo moved under Pages/MainPage. UI-4: CompaniesPanel under
+# Pages/CompaniesPage.
 @onready var _hud: Control = $Split/Right/HUD
 @onready var _tab_main_btn: Button = %TabMain
 @onready var _tab_town_btn: Button = %TabTown
 @onready var _tab_log_btn: Button = %TabLog
+@onready var _tab_companies_btn: Button = %TabCompanies
 @onready var _main_page: VBoxContainer = %MainPage
 @onready var _town_page: VBoxContainer = %TownPage
 @onready var _log_page: VBoxContainer = %LogPage
+@onready var _companies_page: VBoxContainer = %CompaniesPage
 @onready var _town_panel: Control = $Split/Right/Pages/TownPage/TownPanel
 @onready var _ship_body: Label = %ShipBody
 @onready var _route_panel: VBoxContainer = %RouteSlot
@@ -70,13 +78,14 @@ func _ready() -> void:
 	_ship_body.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 	_ship_body.custom_minimum_size = Vector2(0.0, 70.0)
 	# UI-3: theme the tab buttons (same font/size as HUD speed buttons) and wire
-	# them. Active-tab highlight is applied by _set_tab.
-	for b in [_tab_main_btn, _tab_town_btn, _tab_log_btn]:
+	# them. Active-tab highlight is applied by _set_tab. UI-4 adds Companies.
+	for b in [_tab_main_btn, _tab_town_btn, _tab_log_btn, _tab_companies_btn]:
 		b.add_theme_font_override("font", f)
 		b.add_theme_font_size_override("font_size", 13)
 	_tab_main_btn.pressed.connect(_set_tab.bind(TAB_MAIN))
 	_tab_town_btn.pressed.connect(_set_tab.bind(TAB_TOWN))
 	_tab_log_btn.pressed.connect(_set_tab.bind(TAB_LOG))
+	_tab_companies_btn.pressed.connect(_set_tab.bind(TAB_COMPANIES))
 	# The AsciiMap is now a sub-scene; wire its town_selected signal here (it
 	# used to be wired in _build_layout right after .new()).
 	var map: AsciiMap = $Split/WorldMap
@@ -91,7 +100,7 @@ func _ready() -> void:
 	_refresh_all()
 	_set_tab(TAB_MAIN)
 	EventBus.message.emit("UI ready — docked at Tortuga. Trade, edit the route, then Depart.")
-	EventBus.message.emit("Tabs: Main (ship/route/diplo) · Town (inspect/trade) · Log.")
+	EventBus.message.emit("Tabs: Main (ship/route/diplo) · Town (inspect/trade) · Log · Companies (rivals).")
 	EventBus.message.emit("Space pause · 1/2/3 speed · click a town to inspect it.")
 
 # -------------------------------------------------------------- tab switching --
@@ -104,6 +113,7 @@ func _set_tab(idx: int) -> void:
 	_main_page.visible = (idx == TAB_MAIN)
 	_town_page.visible = (idx == TAB_TOWN)
 	_log_page.visible = (idx == TAB_LOG)
+	_companies_page.visible = (idx == TAB_COMPANIES)
 	var active_color := Color(1.0, 0.9, 0.2)
 	var idle_color := Color(0.75, 0.78, 0.82)
 	_tab_main_btn.add_theme_color_override("font_color",
@@ -112,6 +122,8 @@ func _set_tab(idx: int) -> void:
 			active_color if idx == TAB_TOWN else idle_color)
 	_tab_log_btn.add_theme_color_override("font_color",
 			active_color if idx == TAB_LOG else idle_color)
+	_tab_companies_btn.add_theme_color_override("font_color",
+			active_color if idx == TAB_COMPANIES else idle_color)
 
 # ----------------------------------------------------------------- public api --
 
