@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://ui/game_ui.gd" id="1_gameui"]
 [ext_resource type="PackedScene" path="res://ui/map/world_map.tscn" id="2_worldmap"]
@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" path="res://ui/panels/companies_panel.tscn" id="6_companies"]
 [ext_resource type="PackedScene" path="res://ui/panels/politics_panel.tscn" id="7_politics"]
 [ext_resource type="PackedScene" path="res://ui/panels/population_panel.tscn" id="8_population"]
+[ext_resource type="PackedScene" path="res://ui/panels/industry_panel.tscn" id="9_industry"]
+[ext_resource type="PackedScene" path="res://ui/panels/market_panel.tscn" id="10_market"]
 
 [node name="GameUI" type="Control"]
 script = ExtResource("1_gameui")
@@ -74,6 +76,16 @@ custom_minimum_size = Vector2(90, 26)
 unique_name_in_owner = true
 text = "Population"
 custom_minimum_size = Vector2(90, 26)
+
+[node name="TabIndustry" type="Button" parent="Split/Right/TabBar"]
+unique_name_in_owner = true
+text = "Industry"
+custom_minimum_size = Vector2(80, 26)
+
+[node name="TabMarket" type="Button" parent="Split/Right/TabBar"]
+unique_name_in_owner = true
+text = "Market"
+custom_minimum_size = Vector2(70, 26)
 
 [node name="Sep1" type="HSeparator" parent="Split/Right"]
 theme_override_constants/separation = 2
@@ -162,6 +174,26 @@ size_flags_vertical = 3
 theme_override_constants/separation = 4
 
 [node name="PopulationPanel" parent="Split/Right/Pages/PopulationPage" instance=ExtResource("8_population")]
+size_flags_vertical = 3
+
+[node name="IndustryPage" type="VBoxContainer" parent="Split/Right/Pages"]
+unique_name_in_owner = true
+visible = false
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="IndustryPanel" parent="Split/Right/Pages/IndustryPage" instance=ExtResource("9_industry")]
+size_flags_vertical = 3
+
+[node name="MarketPage" type="VBoxContainer" parent="Split/Right/Pages"]
+unique_name_in_owner = true
+visible = false
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="MarketPanel" parent="Split/Right/Pages/MarketPage" instance=ExtResource("10_market")]
 size_flags_vertical = 3
 
 [node name="GameOverModal" type="ColorRect" parent="."]

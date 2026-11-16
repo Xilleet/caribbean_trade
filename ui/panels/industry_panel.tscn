@@ -1,0 +1,54 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/panels/industry_panel.gd" id="1_ip"]
+
+[node name="IndustryPanel" type="VBoxContainer"]
+script = ExtResource("1_ip")
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="."]
+unique_name_in_owner = true
+text = "— Industry —"
+
+[node name="Header" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+theme_override_constants/separation = 0
+
+[node name="HTown" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "town"
+
+[node name="HRecipe" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "recipe"
+
+[node name="HOwner" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "owner"
+
+[node name="HWork" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "workers"
+
+[node name="HCap" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "cap"
+
+[node name="HWear" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "wear"
+
+[node name="HProfit" type="Button" parent="Header"]
+unique_name_in_owner = true
+text = "d/day"
+
+[node name="List" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+size_flags_vertical = 3
+theme_override_constants/separation = 1
+
+[node name="Sep" type="HSeparator" parent="."]
+theme_override_constants/separation = 2
+
+[node name="Summary" type="Label" parent="."]
+unique_name_in_owner = true

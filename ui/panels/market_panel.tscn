@@ -1,0 +1,45 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/panels/market_panel.gd" id="1_mp"]
+
+[node name="MarketPanel" type="VBoxContainer"]
+script = ExtResource("1_mp")
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="."]
+unique_name_in_owner = true
+text = "— Market —  (price / % from base)"
+
+[node name="SortBar" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+theme_override_constants/separation = 4
+
+[node name="SortLbl" type="Label" parent="SortBar"]
+unique_name_in_owner = true
+text = "sort:"
+
+[node name="SortName" type="Button" parent="SortBar"]
+unique_name_in_owner = true
+text = "name"
+
+[node name="SortBase" type="Button" parent="SortBar"]
+unique_name_in_owner = true
+text = "base price"
+
+[node name="SortDev" type="Button" parent="SortBar"]
+unique_name_in_owner = true
+text = "avg dev %"
+
+[node name="Header" type="Label" parent="."]
+unique_name_in_owner = true
+
+[node name="List" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+size_flags_vertical = 3
+theme_override_constants/separation = 1
+
+[node name="Sep" type="HSeparator" parent="."]
+theme_override_constants/separation = 2
+
+[node name="Summary" type="Label" parent="."]
+unique_name_in_owner = true

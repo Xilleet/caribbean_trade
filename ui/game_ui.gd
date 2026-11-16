@@ -40,6 +40,8 @@ const TAB_LOG: int = 2
 const TAB_COMPANIES: int = 3
 const TAB_POLITICS: int = 4
 const TAB_POPULATION: int = 5
+const TAB_INDUSTRY: int = 6
+const TAB_MARKET: int = 7
 
 var _controller: Node = null          # the Main root node (owns the engine)
 var _selected_town: String = "tortuga"
@@ -56,12 +58,16 @@ var _tab: int = TAB_MAIN
 @onready var _tab_companies_btn: Button = %TabCompanies
 @onready var _tab_politics_btn: Button = %TabPolitics
 @onready var _tab_population_btn: Button = %TabPopulation
+@onready var _tab_industry_btn: Button = %TabIndustry
+@onready var _tab_market_btn: Button = %TabMarket
 @onready var _main_page: VBoxContainer = %MainPage
 @onready var _town_page: VBoxContainer = %TownPage
 @onready var _log_page: VBoxContainer = %LogPage
 @onready var _companies_page: VBoxContainer = %CompaniesPage
 @onready var _politics_page: VBoxContainer = %PoliticsPage
 @onready var _population_page: VBoxContainer = %PopulationPage
+@onready var _industry_page: VBoxContainer = %IndustryPage
+@onready var _market_page: VBoxContainer = %MarketPage
 @onready var _town_panel: Control = $Split/Right/Pages/TownPage/TownPanel
 @onready var _ship_body: Label = %ShipBody
 @onready var _route_panel: VBoxContainer = %RouteSlot
@@ -98,7 +104,7 @@ func _ready() -> void:
 	# UI-3: theme the tab buttons (same font/size as HUD speed buttons) and wire
 	# them. Active-tab highlight is applied by _set_tab. UI-4 adds Companies +
 	# Politics.
-	for b in [_tab_main_btn, _tab_town_btn, _tab_log_btn, _tab_companies_btn, _tab_politics_btn, _tab_population_btn]:
+	for b in [_tab_main_btn, _tab_town_btn, _tab_log_btn, _tab_companies_btn, _tab_politics_btn, _tab_population_btn, _tab_industry_btn, _tab_market_btn]:
 		b.add_theme_font_override("font", f)
 		b.add_theme_font_size_override("font_size", 13)
 	_tab_main_btn.pressed.connect(_set_tab.bind(TAB_MAIN))
@@ -107,6 +113,8 @@ func _ready() -> void:
 	_tab_companies_btn.pressed.connect(_set_tab.bind(TAB_COMPANIES))
 	_tab_politics_btn.pressed.connect(_set_tab.bind(TAB_POLITICS))
 	_tab_population_btn.pressed.connect(_set_tab.bind(TAB_POPULATION))
+	_tab_industry_btn.pressed.connect(_set_tab.bind(TAB_INDUSTRY))
+	_tab_market_btn.pressed.connect(_set_tab.bind(TAB_MARKET))
 	# C4 follow-up: theme + wire the game-over modal. The Close button just hides
 	# the modal (the sim stays frozen — there is no "continue" out of a terminal
 	# bankruptcy in Stage 1; the player reads the stats and closes).
@@ -140,7 +148,7 @@ func _ready() -> void:
 	_refresh_all()
 	_set_tab(TAB_MAIN)
 	EventBus.message.emit("UI ready — docked at Tortuga. Trade, edit the route, then Depart.")
-	EventBus.message.emit("Tabs: Main (ship/route/diplo) · Town (inspect/trade) · Log · Companies (rivals) · Politics (wars) · Population (society).")
+	EventBus.message.emit("Tabs: Main (ship/route/diplo) · Town (inspect/trade) · Log · Companies (rivals) · Politics (wars) · Population (society) · Industry (production) · Market (prices).")
 	EventBus.message.emit("Space pause · 1/2/3 speed · click a town to inspect it.")
 	# C4: catch a save that loaded an already-bankrupt player (today the game
 	# always starts solvent, so this is a no-op in a fresh game).
@@ -159,6 +167,8 @@ func _set_tab(idx: int) -> void:
 	_companies_page.visible = (idx == TAB_COMPANIES)
 	_politics_page.visible = (idx == TAB_POLITICS)
 	_population_page.visible = (idx == TAB_POPULATION)
+	_industry_page.visible = (idx == TAB_INDUSTRY)
+	_market_page.visible = (idx == TAB_MARKET)
 	var active_color := Color(1.0, 0.9, 0.2)
 	var idle_color := Color(0.75, 0.78, 0.82)
 	_tab_main_btn.add_theme_color_override("font_color",
@@ -173,6 +183,10 @@ func _set_tab(idx: int) -> void:
 			active_color if idx == TAB_POLITICS else idle_color)
 	_tab_population_btn.add_theme_color_override("font_color",
 			active_color if idx == TAB_POPULATION else idle_color)
+	_tab_industry_btn.add_theme_color_override("font_color",
+			active_color if idx == TAB_INDUSTRY else idle_color)
+	_tab_market_btn.add_theme_color_override("font_color",
+			active_color if idx == TAB_MARKET else idle_color)
 
 # ----------------------------------------------------------------- public api --
 
